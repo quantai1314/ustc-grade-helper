@@ -93,6 +93,17 @@
 - Greasy Fork 原脚本 `600722` 已发布 `1.2.1`；附加说明同步更新。后续发布改为从 GitHub 构建产物同步。
 - GitHub Release `v1.2.1` 已发布，仅包含 `ustc-grade-helper.user.js` 和 `SHA256SUMS.txt`。实际下载附件及 GitHub Raw 源码的 SHA-256 均与本地一致。
 
+## 1.2.2 更新发布
+
+日期：2026-10-19。
+
+- 修复贡献者 Euphoryn 在 [PR #1](https://github.com/quantai1314/ustc-grade-helper/pull/1) 报告的问题：“全部速填并提交”完成第一份问卷后，平台经 `#/middle-page/<编码路由>` 中转到下一课程，原任务边界检查误判 `left-task` 停止批量。
+- 新增中转目标校验：解码后仅允许回到本次批量任务的问卷路由，同时核对任务 ID 和学期；中转期间不操作表单或弹窗。停止、超时、提交确认和任务列表核对仍然生效；无效编码或其他任务目标仍会停止。
+- 以 squash 合并到 main（提交 `907595f`）。Node 回归 37/37；Chrome 浏览器回归 62/62（批量 25、完整脚本 15、核心 16、速填拖动 6），含中转继续、中转停止、中转超时、跨任务/跨学期/无效编码拒绝等新增用例。
+- 构建产物为 `dist/ustc-grade-helper.user.js`，版本 `1.2.2`，LF 换行；本地构建与 PR 内产物逐字一致。SHA-256：`BC5CC6E6974F98F21BAD0DB612A2417F260126EC8B35A17D8440EEF07109EBD9`。
+- main 推送触发 GitHub Webhook，Greasy Fork 返回 HTTP 200，`updated_scripts` 含脚本 `600722`，`updated_failed` 为空；公开页面显示版本 1.2.2。
+- 验证均使用本地模拟问卷与模拟 GM API，未在真实平台填写或提交问卷。
+
 ## GitHub → Greasy Fork 自动同步
 
 已于 2026-10-18 配置并验证：
