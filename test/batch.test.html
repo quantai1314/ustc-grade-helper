@@ -18,6 +18,12 @@ const send=(type,extra={})=>new Promise(resolve=>receiveMessage({type,...extra},
 const getBatch=async()=>(await send('GET_STATUS')).batch;
 let courses=[];
 const route=()=>location.hash='#/my-task/answer/zkd/UnFinished/1/5/Middle/5/course'+course+'/5?semester=demo';
+function viaMiddlePage(){
+ const target='/my-task/answer/zkd/UnFinished/1/5/Middle/5/course'+course+'/'+(mode==='middle-other-id'?'6':'5')+'?semester='+(mode==='middle-other-task'?'other':'demo');
+ location.hash='#/middle-page/'+(mode==='middle-malformed'?'%E0%A4%A':encodeURIComponent(target));
+ area.replaceChildren();
+ if(!['middle-timeout','middle-other-task','middle-other-id','middle-malformed'].includes(mode))setTimeout(render,1000);
+}
 function render(){
  route();area.replaceChildren();if(mode!=='no-details'){const link=document.createElement('a');link.href='#/my-task/details/UnFinished/0/1/Middle/5/5?semester=demo';link.textContent='中期评价';link.onclick=()=>renderList();area.append(link)}
  const group=document.createElement('div');group.className='ant-tabs';
@@ -39,13 +45,14 @@ function render(){
  const next=record.dialogButton||document.createElement('button');next.className='ant-btn ant-btn-primary';next.textContent=teacher+1<courses[course].length?'下一位教师':course+1<courses.length?'下一课程':'确 定';
  next.onclick=()=>{confirmed++;dialog.remove();button.textContent='已提交';button.disabled=true;
  if(teacher+1<courses[course].length){teacher++;if(mode==='success-dialog-delay'){group.querySelectorAll('[role=tab]').forEach((n,j)=>{n.className=j===teacher?'ant-tabs-tab-active ant-tabs-tab':'ant-tabs-tab';n.setAttribute('aria-selected',String(j===teacher))});setTimeout(render,1000)}else render()}
- else if(course+1<courses.length){course++;teacher=0;navigations++;if(mode==='success-dialog-delay'){route();setTimeout(render,1000)}else render()}
+ else if(course+1<courses.length){course++;teacher=0;navigations++;if(mode==='success-dialog-middle'){viaMiddlePage()}else if(mode==='success-dialog-delay'){route();setTimeout(render,1000)}else render()}
  else renderList()};dialog.append(next);area.append(dialog);return}
  button.textContent='已提交';button.disabled=true;const success=document.createElement('div');success.className='ant-message-success';success.textContent='提交成功';area.append(success);
+ if(record.autoCourse&&course+1<courses.length){course++;teacher=0;navigations++;viaMiddlePage();return}
  if(record.autoNext&&teacher+1<courses[course].length){teacher++;render();const toast=document.createElement('div');toast.className='ant-message-success';toast.textContent='提交成功';area.append(toast)}};
  if(record.confirm){const dialog=document.createElement('div');dialog.className='ant-modal';dialog.textContent='确认提交本问卷？';const ok=document.createElement('button');ok.textContent='确 定';ok.onclick=()=>{confirmed++;if(record.reuseConfirm){record.dialog=dialog;record.dialogButton=ok}else dialog.remove();complete()};dialog.append(ok);area.append(dialog)}else complete();
  };
- const next=document.createElement('button');next.textContent='下一课程';next.disabled=course===courses.length-1&&mode!=='cycle';next.onclick=()=>{navigations++;course=(course+1)%courses.length;teacher=0;if(mode==='delay'){route();setTimeout(render,1000)}else render()};area.append(next);
+ const next=document.createElement('button');next.textContent='下一课程';next.disabled=course===courses.length-1&&mode!=='cycle';next.onclick=()=>{navigations++;course=(course+1)%courses.length;teacher=0;if(mode.startsWith('middle-')){viaMiddlePage()}else if(mode==='delay'){route();setTimeout(render,1000)}else render()};area.append(next);
 }
 function renderList(){
  location.hash='#/my-task/details/UnFinished/0/1/Middle/5/5?semester=demo';area.replaceChildren();const pane=document.createElement('div');pane.className='ant-tabs-tabpane-active';const table=document.createElement('table');table.className='ant-table';const body=document.createElement('tbody');table.append(body);
@@ -63,6 +70,29 @@ await test('逐教师逐课程提交，确认成功后才前进，跳过已提�
 });
 await test('教师标签或URL先变化，旧表单延迟一秒才更新时仍不漏评',async()=>{
  await setup([[{},{}],[{}]],'delay');const state=await run();assert(state.phase==='completed'&&state.completed===3&&state.skipped===0&&clicks===3,'等待真实表单更新');
+});
+await test('下一课程经过平台 middle-page 中转路由时继续批量提交',async()=>{
+ await setup([[{}],[{}]],'middle-course');const state=await run();
+ assert(state.phase==='completed'&&state.completed===2&&clicks===2,'同一任务中转不应触发 left-task');
+});
+await test('成功弹窗的下一课程经过 middle-page 时继续批量提交',async()=>{
+ await setup([[{}],[{}]],'success-dialog-middle');const state=await run();
+ assert(state.phase==='completed'&&state.completed===2&&clicks===2&&confirmed===2,'弹窗中转后继续');
+});
+await test('提交成功立即自动进入中转页时等待回执并继续下一课程',async()=>{
+ await setup([[{autoCourse:true}],[{}]]);const state=await run();
+ assert(state.phase==='completed'&&state.completed===2&&clicks===2,'确认提交期间允许同任务中转');
+});
+await test('中转页不会填写旧问卷，停止后下一问卷加载也不提交',async()=>{
+ await setup([[{}],[{}]],'middle-course');await send('START_BATCH');await until(()=>location.hash.startsWith('#/middle-page/'));await send('STOP_BATCH');await new Promise(r=>setTimeout(r,1200));const state=await getBatch();
+ assert(state.reason==='stopped'&&state.completed===1&&clicks===1,'中转期间可停止');
+});
+await test('中转页长期不完成时超时退出',async()=>{
+ await setup([[{}],[{}]],'middle-timeout');await send('START_BATCH');await until(()=>location.hash.startsWith('#/middle-page/'));clockOffset=25000;await until(async()=>!(await getBatch()).running);const state=await getBatch();
+ assert(state.reason==='navigation-timeout'&&clicks===1,'中转必须有超时');clockOffset=0;
+});
+for(const scenario of ['middle-other-task','middle-other-id','middle-malformed'])await test(scenario+' 不允许通过中转绕过任务边界',async()=>{
+ await setup([[{}],[{}]],scenario);const state=await run();assert(state.reason==='left-task'&&clicks===1,'拒绝其他任务或无效目标');
 });
 await test('提交成功只有弹窗回执时，点击下一位教师和下一课程继续全部问卷',async()=>{
  await setup([[{},{}],[{}]],'success-dialog');const state=await run();
