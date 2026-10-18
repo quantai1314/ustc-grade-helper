@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><meta charset="utf-8"><title>批量评教浏览器回归</title>
+<style>body{font:14px/1.6 system-ui;margin:24px;color:#34415b}label{display:block}pre{white-space:pre-wrap}#area{padding:20px;border:1px solid #ddd}</style>
+<h1>批量评教浏览器回归</h1><p>完全本地的多课程、多教师演示，不连接学校平台。</p><pre id="result">运行中…</pre><div id="area"></div>
+<script>
+let receiveMessage,ruleset,storageRead;
+window.chrome={storage:{sync:{get:async()=>storageRead?storageRead():({ruleset})}},runtime:{onMessage:{addListener:fn=>receiveMessage=fn}}};
+</script><script src="../content/engine.js?v=1.2.0-final"></script><script src="../content/selectors.js?v=1.2.0-final"></script><script src="../content/content.js?v=1.2.0-final"></script>
+<script>
+(async()=>{
+const area=document.getElementById('area'),output=document.getElementById('result');
+const logs=[];let failures=0,course=0,teacher=0,mode='normal',clicks=0,confirmed=0,navigations=0,clockOffset=0;
+const nativeNow=Date.now;Date.now=()=>nativeNow()+clockOffset;
+const assert=(ok,text)=>{if(!ok)throw Error(text)};
+const tick=()=>new Promise(resolve=>setTimeout(resolve,30));
+async function until(fn){const start=performance.now();while(!await fn()){if(performance.now()-start>30000)throw Error('等待条件超时');await tick()}}
+const send=(type,extra={})=>new Promise(resolve=>receiveMessage({type,...extra},{},resolve));
+const getBatch=async()=>(await send('GET_STATUS')).batch;
+let courses=[];
+const route=()=>location.hash='#/my-task/answer/zkd/UnFinished/1/5/Middle/5/course'+course+'/5?semester=demo';
+function render(){
+ route();area.replaceChildren();if(mode!=='no-details'){const link=document.createElement('a');link.href='#/my-task/details/UnFinished/0/1/Middle/5/5?semester=demo';link.textContent='中期评价';link.onclick=()=>renderList();area.append(link)}
+ const group=document.createElement('div');group.className='ant-tabs';
+ courses[course].forEach((item,i)=>{const tab=document.createElement('div');tab.role='tab';tab.className=i===teacher?'ant-tabs-tab ant-tabs-tab-active':'ant-tabs-tab';tab.setAttribute('aria-selected',String(i===teacher));tab.textContent='演示教师'+i;tab.onclick=()=>{teacher=i;if(mode==='delay'){group.querySelectorAll('[role=tab]').forEach((n,j)=>{n.className=j===teacher?'ant-tabs-tab-active ant-tabs-tab':'ant-tabs-tab';n.setAttribute('aria-selected',String(j===teacher))});setTimeout(render,1000)}else render()};group.append(tab)});
+ const q=document.createElement('div');q.className='index__subject--test';q.innerHTML='<div class="index__title--test"><span class="index__necessary--test">*</span>总体评价</div><label class="ant-radio-wrapper"><input type="radio" name="answer" value="0">非常好</label><label class="ant-radio-wrapper"><input type="radio" name="answer" value="1">一般</label>';
+ const record=courses[course][teacher];if(record.manual)q.querySelectorAll('input')[1].checked=true;
+ group.append(q);area.append(group);
+ if(mode==='unmatched'){const missing=q.cloneNode(true);missing.querySelector('.index__title--test').textContent='未知必答题';const mark=document.createElement('span');mark.className='index__necessary--test';mark.textContent='*';missing.querySelector('.index__title--test').prepend(mark);missing.querySelectorAll('input').forEach(n=>n.name='missing');area.append(missing)}
+ const button=document.createElement('button');button.className='index__submit--test';button.textContent=record.done?'已提交':'提交';button.disabled=!!record.done||mode==='countdown';area.append(button);
+ button.onclick=()=>{
+ clicks++;record.value=[...q.querySelectorAll('input')].findIndex(n=>n.checked);
+ if(mode==='failure'){const error=document.createElement('div');error.className='ant-message-error';error.textContent='提交失败，请重试';area.append(error);return}
+ if(mode==='silent')return;
+ const complete=()=>{record.done=true;button.textContent='已提交';button.disabled=true;const success=document.createElement('div');success.className='ant-message-success';success.textContent='提交成功';area.append(success);
+ if(record.autoNext&&teacher+1<courses[course].length){teacher++;render();const toast=document.createElement('div');toast.className='ant-message-success';toast.textContent='提交成功';area.append(toast)}};
+ if(record.confirm){const dialog=document.createElement('div');dialog.className='ant-modal';dialog.textContent='确认提交本问卷？';const ok=document.createElement('button');ok.textContent='确 定';ok.onclick=()=>{confirmed++;dialog.remove();complete()};dialog.append(ok);area.append(dialog)}else complete();
+ };
+ const next=document.createElement('button');next.textContent='下一课程';next.disabled=course===courses.length-1&&mode!=='cycle';next.onclick=()=>{navigations++;course=(course+1)%courses.length;teacher=0;if(mode==='delay'){route();setTimeout(render,1000)}else render()};area.append(next);
+}
+function renderList(){
+ location.hash='#/my-task/details/UnFinished/0/1/Middle/5/5?semester=demo';area.replaceChildren();const pane=document.createElement('div');pane.className='ant-tabs-tabpane-active';const table=document.createElement('table');table.className='ant-table';const body=document.createElement('tbody');table.append(body);
+ courses.forEach((items,i)=>{if(items.every(n=>n.done))return;const row=document.createElement('tr');row.setAttribute('data-row-key','course'+i);const cell=document.createElement('td'),action=document.createElement('span');action.textContent='评价';action.onclick=()=>{course=i;teacher=0;render()};cell.append(action);row.append(cell);body.append(row)});pane.append(table);const next=document.createElement('li');next.className='ant-pagination-next ant-pagination-disabled';next.setAttribute('aria-disabled','true');pane.append(next);area.append(pane);
+}
+async function setup(records,newMode='normal'){
+ await send('STOP_BATCH');await until(async()=>!(await getBatch()).running);await new Promise(r=>setTimeout(r,350));
+ courses=records;course=0;teacher=0;mode=newMode;clicks=0;confirmed=0;navigations=0;ruleset=undefined;storageRead=undefined;clockOffset=0;render();
+}
+async function run(){await send('START_BATCH');await until(async()=>!(await getBatch()).running);return getBatch()}
+async function test(name,fn){try{await fn();logs.push('PASS '+name)}catch(e){failures++;logs.push('FAIL '+name+': '+e.message+' '+JSON.stringify(await getBatch())+' clicks='+clicks+' nav='+navigations);await send('STOP_BATCH')}output.textContent=logs.join('\n')}
+await test('逐教师逐课程提交，确认成功后才前进，跳过已提交并保留手动答案',async()=>{
+ await setup([[{done:true},{manual:true,confirm:true}],[{autoNext:true},{}]]);const state=await run();
+ assert(state.phase==='completed'&&state.completed===3&&state.skipped===1,'完成统计');assert(clicks===3&&confirmed===1&&navigations===1,'只提交一次且处理确认框');assert(courses[0][1].value===1,'保留用户选项');assert(courses.flat().every(n=>n.done),'全部问卷已确认提交');
+});
+await test('教师标签或URL先变化，旧表单延迟一秒才更新时仍不漏评',async()=>{
+ await setup([[{},{}],[{}]],'delay');const state=await run();assert(state.phase==='completed'&&state.completed===3&&state.skipped===0&&clicks===3,'等待真实表单更新');
+});
+await test('从最后一门课程启动也会回任务列表补齐前面未完成课程',async()=>{
+ await setup([[{}],[{}]],'task-list');course=1;render();const state=await run();assert(state.phase==='completed'&&state.completed===2&&courses.flat().every(n=>n.done),'补齐前面课程');assert(location.hash.includes('/my-task/details/'),'回列表确认全部完成');
+});
+await test('重复点击开始不会建立并发循环，停止后倒计时结束也不提交',async()=>{
+ await setup([[{}]],'countdown');await send('START_BATCH');await until(()=>area.querySelector('input').checked);await send('START_BATCH');await send('STOP_BATCH');area.querySelector('.index__submit--test').disabled=false;await new Promise(r=>setTimeout(r,300));
+ const state=await getBatch();assert(!state.running&&state.reason==='stopped'&&clicks===0,'停止生效');
+});
+await test('未匹配必答题留空时停止，不提交或进入下一课程',async()=>{
+ await setup([[{}],[{}]],'unmatched');const state=await run();assert(state.reason==='unanswered'&&clicks===0&&navigations===0,'缺必答停止');
+});
+await test('平台显示提交失败时停止，不重试也不翻页',async()=>{
+ await setup([[{}],[{}]],'failure');const state=await run();assert(state.reason==='submission-failed'&&state.completed===0&&clicks===1&&navigations===0,'失败不能算完成');
+});
+await test('没有成功回执时不把点击算提交完成',async()=>{
+ await setup([[{}],[{}]],'silent');await send('START_BATCH');await until(()=>clicks===1);await until(async()=>(await getBatch()).phase==='confirming');clockOffset=25000;await until(async()=>!(await getBatch()).running);const state=await getBatch();assert(state.reason==='submission-unconfirmed'&&state.completed===0&&navigations===0,'缺回执停止');clockOffset=0;
+});
+await test('下一课程循环回起点时结束，不重复提交',async()=>{
+ await setup([[{}],[{}]],'cycle');const state=await run();assert(state.phase==='completed'&&state.completed===2&&clicks===2&&navigations===2,'循环去重');
+});
+await test('读取规则失败时停止，不点击提交',async()=>{
+ await setup([[{}]]);storageRead=async()=>{throw Error('storage unavailable')};await send('START_BATCH');await until(async()=>!(await getBatch()).running);const state=await getBatch();assert(state.reason==='storage-error'&&clicks===0,'存储故障停止');storageRead=undefined;
+});
+await test('没有当前任务详情入口时拒绝批量，避免把局部完成当作全部完成',async()=>{
+ await setup([[{}],[{}]],'no-details');course=1;render();const result=await send('START_BATCH');assert(!result.ok&&result.reason==='navigation-unavailable'&&clicks===0,'缺任务入口不启动');
+});
+await test('无问卷禁止启动，状态仍保留批量结果',async()=>{
+ area.replaceChildren();const result=await send('START_BATCH'),status=await send('GET_STATUS');assert(!result.ok&&result.reason==='no-questionnaire'&&status.batch&&!status.batch.running,'非问卷入口保护');
+});
+output.textContent+='\n\n'+(failures?'FAILED':'ALL PASSED')+` (${logs.length-failures}/${logs.length})`;output.dataset.failures=failures;
+})();
+</script></html>

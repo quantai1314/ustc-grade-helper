@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<meta charset="utf-8"><title>USTC评教助手 · 默认模板与拖动验证</title>
+<style>body{margin:0;background:#f4f6fa;color:#34415b;font:14px/1.7 "Segoe UI","Microsoft YaHei",sans-serif}.page{max-width:880px;margin:32px auto;padding:0 24px}h1{font-size:24px;margin:0 0 4px}.intro{color:#939cb0;margin:0 0 24px}#questions{padding:20px 28px;background:#fff;border:1px solid #e6eaf2;border-radius:16px}.question{padding:18px 0;border-bottom:1px solid #eff1f6}.question-title{font-weight:600;margin-bottom:10px}label{display:inline-flex;align-items:center;gap:5px;margin:5px 14px 5px 0;color:#7a849a;font-size:12px}input{accent-color:#5574e7}textarea{width:100%;height:70px;border:1px solid #e0e5ee;border-radius:8px}.required{color:#dc8e75;margin-right:5px}pre{white-space:pre-wrap;font-size:12px;color:#76839c}.demo-submit{margin-top:20px;padding:9px 20px;border:0;background:#eaf0ff;color:#526bc4;border-radius:8px}</style>
+<main class="page"><h1>中国科学技术大学期中评价问卷</h1><p class="intro">本地演示 · 根据保存问卷的题目与选项生成，不含个人评价与账号信息</p><pre id="result">运行中…</pre><section id="questions"></section></main>
+<script>
+(async()=>{
+  const output=document.getElementById('result'),area=document.getElementById('questions');
+  const questions=await(await fetch('fixtures/questions.json')).json();
+  const legacy={rules:[{id:'r-old-saved',enabled:true,match:{titleIncludes:['总体评价','总体满意','满意度']},action:{strategy:'best'}}],unmatchedStrategy:'highlight'};
+  const preview=new URLSearchParams(location.search).has('preview');
+  let savedRules=structuredClone(legacy),position=JSON.parse((preview&&sessionStorage.getItem('quickfillPosition'))||'{"right":70,"bottom":35}');
+  const initialPosition={...position};let submits=0,failPositionWrite=false,unhandled=0;const writes=[];
+  addEventListener('unhandledrejection',()=>unhandled++);
+  window.GM={async getValue(key,fallback){return structuredClone(key==='ruleset'?savedRules:key==='launcherPosition'?position:fallback)},async setValue(key,value){if(key==='launcherPosition'&&failPositionWrite)throw Error('position write failure');writes.push(key);if(key==='ruleset')savedRules=structuredClone(value);if(key==='launcherPosition'){position=structuredClone(value);sessionStorage.setItem('quickfillPosition',JSON.stringify(value))}},registerMenuCommand(){}};
+  questions.forEach((q,i)=>{
+    const block=document.createElement('div');block.className='index__subject--demo question';
+    const title=document.createElement('div');title.className='index__title--demo question-title';
+    title.textContent=q.title.replace(/^\*\s*/,'');
+    if(q.required){const mark=document.createElement('span');mark.className='index__necessary--demo required';mark.textContent='*';title.prepend(mark)}
+    block.append(title);
+    if(q.type==='text'){block.append(document.createElement('textarea'))}
+    else q.options.forEach((text,j)=>{const label=document.createElement('label');label.className=q.type==='multi'?'ant-checkbox-wrapper':'ant-radio-wrapper';const input=document.createElement('input');input.type=q.type==='multi'?'checkbox':'radio';input.name='question-'+i;input.value=j;label.append(input,document.createTextNode(text));block.append(label)});
+    area.append(block);
+  });
+  const submit=document.createElement('button');submit.className='index__submit--demo demo-submit';submit.textContent='提交演示问卷';submit.onclick=()=>submits++;area.append(submit);
+  const source=document.createElement('script');source.src='../dist/ustc-grade-helper.user.js?v=1.2.0-final';await new Promise((resolve,reject)=>{source.onload=resolve;source.onerror=reject;document.body.append(source)});
+  const root=document.getElementById('ugh-userscript-root').shadowRoot,launcher=root.getElementById('ugh-launcher'),panel=root.getElementById('ugh-panel');
+  const main=id=>root.querySelector('.ugh-popup').querySelector('#'+id);
+  const tick=()=>new Promise(resolve=>setTimeout(resolve,30));
+  async function until(fn){const start=Date.now();while(!fn()){if(Date.now()-start>3000)throw Error('等待条件超时');await tick()}}
+  if(preview){output.hidden=true;launcher.click();return}
+  const logs=[];let failures=0;const assert=(ok,msg)=>{if(!ok)throw Error(msg)};
+  async function test(name,fn){try{await fn();logs.push('PASS '+name)}catch(e){failures++;logs.push('FAIL '+name+': '+e.message)}output.textContent=logs.join('\n')}
+  const blocks=[...area.querySelectorAll('.question')];
+  const selected=i=>[...blocks[i].querySelectorAll('input')].filter(el=>el.checked).map(el=>Number(el.value));
+  function drag(dx,dy){const r=launcher.getBoundingClientRect(),x=r.left+20,y=r.top+20;const options={pointerId:77,pointerType:'mouse',isPrimary:true,button:0,bubbles:true,composed:true};launcher.dispatchEvent(new PointerEvent('pointerdown',{...options,clientX:x,clientY:y}));launcher.dispatchEvent(new PointerEvent('pointermove',{...options,clientX:x+dx,clientY:y+dy,cancelable:true}));launcher.dispatchEvent(new PointerEvent('pointerup',{...options,clientX:x+dx,clientY:y+dy}));launcher.dispatchEvent(new MouseEvent('click',{bubbles:true,composed:true,detail:1}))}
+  await test('读取已保存悬浮位置，旧默认无需重置即可升级完整模板',async()=>{
+    await until(()=>document.getElementById('ugh-userscript-root').style.right!=='');await tick();
+    const rect=launcher.getBoundingClientRect();assert(Math.abs(document.documentElement.clientWidth-rect.right-initialPosition.right)<2,'位置恢复');
+    launcher.click();await until(()=>main('coverage').textContent.includes('模板可填 11 题（含 9 道必答）'));
+    assert(main('counter').textContent==='0/12'&&writes.length===0,'旧默认升级且不自动写入');
+  });
+  await test('一次速填完成全部9道必答，助教选作业反馈，主观留空',async()=>{
+    main('apply').click();await until(()=>main('counter').textContent==='11/12');
+    const expected=[0,1,1,1,0,3,0,3,0,0,1];
+    expected.forEach((index,i)=>assert(JSON.stringify(selected(i))===JSON.stringify([index]),'第'+(i+1)+'题'));
+    assert(blocks[11].querySelector('textarea').value===''&&submits===0,'不填主观及不提交');
+    assert(main('msg').textContent.includes('已填满 9/9'),'完成反馈');
+  });
+  await test('保留用户修改，只有按模板重填才覆盖',async()=>{
+    blocks[0].querySelectorAll('label')[2].click();blocks[7].querySelectorAll('label')[3].click();blocks[7].querySelectorAll('label')[1].click();
+    main('apply').click();await until(()=>!main('apply').disabled);
+    assert(selected(0)[0]===2&&JSON.stringify(selected(7))==='[1]','保留单选多选');
+    main('refill').click();await until(()=>!main('refill').disabled);
+    assert(selected(0)[0]===0&&JSON.stringify(selected(7))==='[3]','明确重填目标集合');assert(submits===0,'默认不提交');
+  });
+  await test('拖动改变位置并独立保存，释放不误打开面板',async()=>{
+    root.getElementById('ugh-close').click();const before=launcher.getBoundingClientRect();drag(-120,-80);await tick();const after=launcher.getBoundingClientRect();
+    assert(after.left<before.left-100&&after.top<before.top-60,'拖动移动');assert(panel.hidden,'释放不打开');
+    assert(writes.includes('launcherPosition')&&savedRules.rules.length===1&&position.right>initialPosition.right,'位置独立保存');
+    const r=launcher.getBoundingClientRect();launcher.dispatchEvent(new PointerEvent('pointerdown',{pointerId:78,pointerType:'mouse',isPrimary:true,button:0,clientX:r.left+20,clientY:r.top+20}));launcher.dispatchEvent(new PointerEvent('pointerup',{pointerId:78,pointerType:'mouse',isPrimary:true,button:0,clientX:r.left+20,clientY:r.top+20}));launcher.dispatchEvent(new MouseEvent('click',{detail:1}));assert(!panel.hidden,'下一次正常点击可打开');
+  });
+  await test('悬浮按钮拖至边界后，入口和面板仍完整可见',async()=>{
+    root.getElementById('ugh-close').click();drag(-100000,100000);launcher.click();await tick();
+    for(const node of [launcher,panel]){const r=node.getBoundingClientRect();assert(r.left>=0&&r.top>=0&&r.right<=document.documentElement.clientWidth+1&&r.bottom<=document.documentElement.clientHeight+1,'边界限制')}
+    const a=launcher.getBoundingClientRect(),p=panel.getBoundingClientRect();assert(p.bottom<=a.top||p.top>=a.bottom,'面板不遮挡拖动入口');
+  });
+  await test('位置存储失败不影响继续拖动和打开面板',async()=>{
+    root.getElementById('ugh-close').click();failPositionWrite=true;drag(80,-80);await tick();assert(unhandled===0&&panel.hidden,'存储失败降级');launcher.click();assert(!panel.hidden,'仍能打开');failPositionWrite=false;
+  });
+  output.dataset.failures=String(failures);output.dataset.tests=String(logs.length);output.textContent+='\n\n'+(failures?'FAILED':'ALL PASSED')+` (${logs.length-failures}/${logs.length})`;
+})();
+</script>
+</html>

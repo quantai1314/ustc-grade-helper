@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<meta charset="utf-8"><title>USTC评教助手 用户脚本集成回归</title>
+<style>body{font:15px/1.7 system-ui;max-width:850px;margin:24px}label{display:block;margin:6px}#questions>div{padding:12px;border-bottom:1px solid #ddd}pre{white-space:pre-wrap}textarea{width:90%;height:60px}</style>
+<h1>用户脚本集成回归（演示问卷）</h1>
+<p>测试完整发布脚本、真实浮动界面与 GM 存储适配。所有答案及提交计数仅保存在此本地演示页。</p>
+<pre id="result">运行中…</pre><div id="questions"></div>
+<script>
+let savedRules=null, writes=0, submissions=0, ignores=0, storageFailure=false;
+const commands=[];
+const oldChrome=window.chrome;
+window.Engine={sentinel:true};window.SELECTORS={sentinel:true};window.__ugh={sentinel:true};
+window.GM={
+  async getValue(key,fallback){return key==='ruleset'?structuredClone(savedRules||fallback):fallback},
+  async setValue(key,value){if(storageFailure)throw Error('test write failure');savedRules=structuredClone(value);writes++},
+  registerMenuCommand(name,fn){commands.push({name,fn})}
+};
+function renderForm(readonly=false){
+  document.getElementById('questions').innerHTML=`
+    <div class="ant-tabs-tab-active">演示教师</div>
+    <div class="index__subject--demo"><div class="index__title--demo"><span class="index__necessary--demo">*</span>1.总体评价 (单选题)</div>
+      <label class="ant-radio-wrapper"><input type="radio" name="q1">非常好</label><label class="ant-radio-wrapper"><input type="radio" name="q1">一般</label></div>
+    <div class="index__subject--demo"><div class="index__title--demo"><span class="index__necessary--demo">*</span>2.哪些方面需要调整 (多选题)</div>
+      <label class="ant-checkbox-wrapper"><input type="checkbox">内容选择</label><label class="ant-checkbox-wrapper"><input type="checkbox">课程组织</label></div>
+    <div class="index__subject--demo"><div class="index__title--demo"><span class="index__necessary--demo">*</span>3.您的具体意见<span class="index__numCount--demo">输入字0/3000</span></div><textarea></textarea></div>
+    <button class="index__submit--demo">提交演示问卷</button><button id="demo-ignore">忽略</button>`;
+  const submit=document.querySelector('.index__submit--demo');
+  submit.onclick=()=>submissions++;
+  document.getElementById('demo-ignore').onclick=()=>ignores++;
+  document.querySelector('textarea').oninput=e=>document.querySelector('.index__numCount--demo').textContent='输入字'+e.target.value.length+'/3000';
+  if(readonly){submit.textContent='已提交';submit.disabled=true;document.querySelectorAll('#questions input,#questions textarea').forEach(el=>el.disabled=true)}
+}
+renderForm();
+</script>
+<script src="../dist/ustc-grade-helper.user.js?v=1.2.0-final"></script>
+<script>
+(async()=>{
+  const output=document.getElementById('result');const logs=[];let failures=0;
+  const assert=(ok,msg)=>{if(!ok)throw Error(msg)};
+  const tick=()=>new Promise(resolve=>setTimeout(resolve,30));
+  async function until(fn,timeout=2500){const start=Date.now();while(!fn()){if(Date.now()-start>timeout)throw Error('等待条件超时');await tick()}}
+  async function test(name,fn){try{await fn();logs.push('PASS '+name)}catch(e){failures++;logs.push('FAIL '+name+': '+e.message)}output.textContent=logs.join('\n')}
+  const host=document.getElementById('ugh-userscript-root');const root=host.shadowRoot;
+  const main=id=>root.querySelector('.ugh-popup').querySelector('#'+id);
+  const options=root.getElementById('ugh-options-host').shadowRoot;
+  const setting=id=>options.querySelector('#'+id);let defaultRuleCount=0;
+  await test('完整脚本不污染页面全局且注册菜单',async()=>{
+    await until(()=>!setting('add').disabled);
+    defaultRuleCount=setting('rules').querySelectorAll('tr').length;
+    assert(window.chrome===oldChrome&&window.Engine.sentinel&&window.SELECTORS.sentinel&&window.__ugh.sentinel,'全局变量保持');
+    assert(commands.length===2,'菜单注册');assert(savedRules===null&&writes===0,'首次启动不写入默认');
+  });
+  await test('浮动面板可开关并显示当前问卷',async()=>{
+    assert(root.getElementById('ugh-panel').hidden,'默认收起');
+    root.getElementById('ugh-launcher').click();await until(()=>!main('apply').disabled);
+    assert(main('counter').textContent==='0/3'&&main('coverage').textContent.includes('模板可填 1 题（含 1 道必答）'),'题数状态');
+    assert(main('unmatched').textContent.includes('哪些方面'),'未匹配列表');
+  });
+  await test('预览不修改表单，应用默认不提交',async()=>{
+    main('preview').click();await until(()=>main('msg').textContent.includes('已高亮'));
+    assert(document.querySelectorAll('.ugh-mark').length===1&&!document.querySelector('#questions input').checked,'仅高亮');
+    main('apply').click();await until(()=>!main('apply').disabled);
+    assert(document.querySelector('#questions input').checked&&submissions===0,'仅填选');
+  });
+  await test('设置页保存包含引号的规则到GM存储',async()=>{
+    main('settings').click();await tick();
+    assert(!root.getElementById('ugh-options-host').hidden,'设置可见');
+    setting('add').click();let rows=setting('rules').querySelectorAll('tr');let row=rows[defaultRuleCount];
+    row.querySelector('.kw').value='哪些方面';row.querySelector('.st').value='contains';row.querySelector('.arg').value='内容';
+    setting('add').click();rows=setting('rules').querySelectorAll('tr');row=rows[defaultRuleCount+1];
+    row.querySelector('.kw').value='具体意见';row.querySelector('.st').value='fillText';row.querySelector('.arg').value='建议增加"例题"';
+    setting('save').click();await until(()=>setting('msg').textContent==='已保存');
+    assert(savedRules.rules.length===defaultRuleCount+2&&savedRules.rules.at(-1).action.text==='建议增加"例题"'&&writes===1,'GM规则保存');
+  });
+  await test('shadow DOM内编辑快捷键不会触发问卷动作',async()=>{
+    document.querySelector('#questions input').checked=false;
+    const input=setting('rules').querySelector('.arg');
+    input.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',bubbles:true,composed:true}));await tick();
+    assert(!document.querySelector('#questions input').checked,'设置回车不能填选');
+  });
+  await test('设置面板打开时，即使焦点退回body也不填选或忽略问卷',async()=>{
+    document.body.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',bubbles:true}));
+    document.body.dispatchEvent(new KeyboardEvent('keyup',{key:'Backspace',bubbles:true}));await tick();
+    assert(!document.querySelector('#questions input').checked&&ignores===0,'设置状态禁用全局快捷操作');
+  });
+  await test('本次自动提交勾选立即复位，重复点击不再提交',async()=>{
+    root.getElementById('ugh-back').click();await until(()=>main('coverage').textContent.includes('模板可填 3 题'));
+    main('autosubmit').checked=true;main('apply').click();assert(!main('autosubmit').checked,'点击后复位');
+    await until(()=>main('msg').textContent.includes('已触发提交'));
+    assert(submissions===1&&document.querySelector('#questions textarea').value==='建议增加"例题"','一次提交及文本填写');
+    main('apply').click();await until(()=>!main('apply').disabled);
+    assert(submissions===1&&document.querySelector('#questions input[type=checkbox]').checked,'重复不提交且多选保持');
+  });
+  await test('面板重新打开及切换问卷后自动提交恢复关闭',async()=>{
+    main('autosubmit').checked=true;root.getElementById('ugh-close').click();root.getElementById('ugh-launcher').click();
+    assert(!main('autosubmit').checked,'重新打开关闭');
+    main('autosubmit').checked=true;document.querySelector('.ant-tabs-tab-active').textContent='另一位演示教师';
+    await until(()=>!main('autosubmit').checked);
+  });
+  await test('GM写入失败保留当前编辑内容',async()=>{
+    main('settings').click();await tick();const arg=setting('rules').querySelectorAll('.arg')[defaultRuleCount+1];arg.value='未保存内容';
+    storageFailure=true;setting('save').click();await until(()=>setting('msg').textContent.includes('保存失败'));
+    assert(arg.value==='未保存内容'&&savedRules.rules.at(-1).action.text==='建议增加"例题"','失败不丢编辑及原存储');storageFailure=false;
+  });
+  await test('页面只读和离开问卷时面板状态更新',async()=>{
+    root.getElementById('ugh-back').click();renderForm(true);await until(()=>main('status').textContent.includes('只读'));
+    assert(main('apply').disabled&&!main('preview').disabled,'只读控件');
+    document.getElementById('questions').replaceChildren();await until(()=>main('status').textContent.includes('未检测'));
+    assert(main('apply').disabled&&main('preview').disabled&&!main('settings').disabled,'非问卷控件');
+  });
+  await test('规则可恢复默认，GM菜单可打开设置',async()=>{
+    commands[1].fn();await tick();setting('reset').click();await until(()=>setting('msg').textContent==='已恢复默认');
+    assert(savedRules.rules.length===defaultRuleCount&&setting('rules').querySelectorAll('tr').length===defaultRuleCount,'恢复默认');
+    renderForm();commands[0].fn();await until(()=>main('counter').textContent.endsWith('/3'));
+  });
+  let batchCourse=0,batchTeacher=0,batchClicks=0,batchCountdown=false;const batchDone=new Set();
+  function renderBatchForm(){
+    location.hash='#/my-task/answer/zkd/UnFinished/1/5/Middle/5/demo'+batchCourse+'/5?semester=test';
+    renderForm();const area=document.getElementById('questions'),old=area.querySelector('.ant-tabs-tab-active');
+    const tabs=document.createElement('div');tabs.className='ant-tabs';
+    for(let i=0;i<2;i++){const tab=document.createElement('div');tab.role='tab';tab.className=i===batchTeacher?'ant-tabs-tab-active ant-tabs-tab':'ant-tabs-tab';tab.setAttribute('aria-selected',String(i===batchTeacher));tab.textContent='批量演示教师'+i;tab.onclick=()=>{batchTeacher=i;renderBatchForm()};tabs.append(tab)}old.replaceWith(tabs);
+    const button=area.querySelector('.index__submit--demo');button.disabled=batchCountdown;
+    button.onclick=()=>{batchClicks++;batchDone.add(batchCourse*2+batchTeacher);button.textContent='已提交';button.disabled=true};
+    const next=document.createElement('button');next.textContent='下一课程';next.disabled=batchCourse===1;next.onclick=()=>{batchCourse++;batchTeacher=0;renderBatchForm()};area.append(next);
+    const details=document.createElement('a');details.href='#/my-task/details/UnFinished/0/1/Middle/5/5?semester=test';details.textContent='演示任务';details.onclick=()=>{location.hash=details.hash;area.replaceChildren();const pane=document.createElement('div');pane.className='ant-tabs-tabpane-active';const table=document.createElement('table');table.className='ant-table';const body=document.createElement('tbody');table.append(body);if(batchDone.size!==4){const row=document.createElement('tr');row.setAttribute('data-row-key','pending');row.innerHTML='<td>仍未完成</td>';body.append(row)}pane.append(table);area.append(pane)};area.append(details);
+  }
+  await test('完整浮动界面的批量按钮逐教师逐课程完成四份问卷并显示结果',async()=>{
+    savedRules={rules:[{enabled:true,match:{titleIncludes:['总体评价']},action:{strategy:'best'}},{enabled:true,match:{titleIncludes:['哪些方面']},action:{strategy:'contains',keyword:'内容'}},{enabled:true,match:{titleIncludes:['具体意见']},action:{strategy:'fillText',text:'演示建议'}}],unmatchedStrategy:'highlight'};
+    renderBatchForm();await until(()=>!main('batch').disabled);main('batch').click();
+    await until(()=>main('batch-state').textContent.includes('当前任务已处理完成'),15000);
+    assert(batchClicks===4&&main('batch-state').textContent.includes('已完成 4 份'),'四份问卷及UI统计');assert(main('stop-batch').hidden&&main('batch').disabled,'回列表完成并收起停止入口');
+  });
+  await test('完整浮动界面的停止按钮终止等待提交，不会在按钮恢复后继续',async()=>{
+    batchCourse=0;batchTeacher=0;batchClicks=0;batchCountdown=true;renderBatchForm();await until(()=>!main('batch').disabled);main('batch').click();
+    await until(()=>main('apply').disabled&&!main('stop-batch').disabled&&document.querySelector('#questions input').checked);
+    main('stop-batch').click();await until(()=>main('batch-state').textContent.includes('已停止后续操作'));
+    document.querySelector('.index__submit--demo').disabled=false;await new Promise(resolve=>setTimeout(resolve,350));assert(batchClicks===0&&main('stop-batch').hidden,'停止后无提交');batchCountdown=false;
+  });
+  output.dataset.failures=String(failures);output.dataset.tests=String(logs.length);
+  output.textContent+='\n\n'+(failures?'FAILED':'ALL PASSED')+` (${logs.length-failures}/${logs.length})`;
+})();
+</script>
+</html>

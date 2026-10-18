@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  body { width: 360px; margin: 0; padding: 20px; box-sizing: border-box; background: #fff; color: #18243c; font: 13px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif; }
+  .ugh-popup * { box-sizing: border-box; }
+  .ugh-popup .hero { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
+  .ugh-popup .app-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 13px; background: #edf2ff; color: #4667de; flex-shrink: 0; }
+  .ugh-popup h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.3px; }
+  .ugh-popup .subtitle { margin: 1px 0 0; color: #8992a6; font-size: 11px; }
+  .ugh-popup .status-card { padding: 14px; border: 1px solid #e8edf5; border-radius: 14px; background: #f8faff; }
+  .ugh-popup .status-top { display: flex; align-items: center; justify-content: space-between; color: #6d7991; font-size: 11px; }
+  .ugh-popup #counter { color: #4667de; font-size: 20px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .ugh-popup progress { display: block; appearance: none; width: 100%; height: 6px; margin: 12px 0 9px; border: 0; border-radius: 8px; overflow: hidden; background: #e6ebf6; accent-color: #5574e7; }
+  .ugh-popup progress::-webkit-progress-bar { background: #e6ebf6; border-radius: 8px; }
+  .ugh-popup progress::-webkit-progress-value { background: #5574e7; border-radius: 8px; transition: width .2s; }
+  .ugh-popup .stat { color: #66748c; font-size: 12px; }
+  .ugh-popup .warn { color: #a96a2a; }
+  .ugh-popup #coverage { color: #8e99ad; font-size: 11px; margin-top: 2px; }
+  .ugh-popup #unmatched { font-size: 11px; color: #a96a2a; max-height: 70px; overflow: auto; margin-top: 6px; }
+  .ugh-popup .preset { margin: 16px 0; }
+  .ugh-popup .preset-title { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px; }
+  .ugh-popup .preset-title span { font-size: 10px; color: #7c8ba4; font-weight: 400; letter-spacing: 1px; }
+  .ugh-popup .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ugh-popup .chips span { padding: 3px 8px; border-radius: 6px; background: #f0f3fa; color: #62718d; font-size: 11px; }
+  .ugh-popup .preset-caption { margin: 7px 0 0; color: #939caf; font-size: 10px; }
+  .ugh-popup button { font: inherit; cursor: pointer; border-radius: 10px; transition: background .15s, box-shadow .15s; }
+  .ugh-popup button:focus-visible { outline: 3px solid #abc0ff; outline-offset: 2px; }
+  .ugh-popup button:disabled { opacity: .45; cursor: default; }
+  .ugh-popup #apply { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; padding: 13px; border: 1px solid #4768da; background: #4c6ee0; color: #fff; font-size: 14px; font-weight: 600; box-shadow: 0 4px 10px #4768da24; }
+  .ugh-popup #apply:hover:not(:disabled) { background: #3c5fce; }
+  .ugh-popup .action-hint { margin: 7px 0 0; text-align: center; color: #9aa3b5; font-size: 10px; }
+  .ugh-popup #msg { min-height: 20px; margin: 10px 0 0; font-size: 11px; color: #4867be; overflow-wrap: anywhere; }
+  .ugh-popup .batch-section { margin-top: 12px; padding-top: 13px; border-top: 1px solid #edf0f5; }
+  .ugh-popup .batch-actions { display: flex; gap: 8px; }
+  .ugh-popup #batch { flex: 1; padding: 10px 8px; border: 1px solid #cad5f5; background: #f2f5ff; color: #4864bd; font-size: 12px; font-weight: 600; }
+  .ugh-popup #batch:hover:not(:disabled) { background: #e7edff; }
+  .ugh-popup #stop-batch { padding: 10px 13px; border: 1px solid #e7cdb5; background: #fff8f1; color: #a36c3d; font-size: 12px; }
+  .ugh-popup .batch-note { margin: 7px 0 0; color: #939caf; font-size: 10px; }
+  .ugh-popup #batch-state { margin: 7px 0 0; color: #62718b; font-size: 11px; overflow-wrap: anywhere; }
+  .ugh-popup details { margin-top: 10px; padding-top: 12px; border-top: 1px solid #edf0f5; }
+  .ugh-popup summary { color: #7c899f; cursor: pointer; font-size: 11px; list-style: none; display: flex; justify-content: space-between; }
+  .ugh-popup summary::after { content: '+'; }
+  .ugh-popup details[open] summary::after { content: '−'; }
+  .ugh-popup .secondary-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
+  .ugh-popup .secondary-actions button { padding: 7px 5px; border: 1px solid #e4eaf4; background: #fff; color: #71809a; font-size: 11px; }
+  .ugh-popup .secondary-actions button:hover:not(:disabled) { background: #f4f7fd; }
+  .ugh-popup .auto { display: flex; align-items: center; gap: 6px; margin-top: 10px; color: #8994a6; font-size: 10px; }
+  .ugh-popup input { accent-color: #5574e7; }
+</style>
+</head>
+<body class="ugh-popup">
+  <header class="hero">
+    <div class="app-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 5H6a2 2 0 0 0-2 2v13h16V7a2 2 0 0 0-2-2h-3M9 3h6v4H9V3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m8 13 3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div><h1>USTC评教助手</h1><p class="subtitle">预设已就绪，填完再检查例外</p></div>
+  </header>
+  <section class="status-card">
+    <div class="status-top"><span>问卷填写情况</span><strong id="counter">—/—</strong></div>
+    <progress id="progress" value="0" max="1" aria-label="问卷填写进度"></progress>
+    <div class="stat" id="status">正在读取问卷…</div>
+    <div id="coverage"></div><div id="unmatched"></div>
+  </section>
+  <section class="preset">
+    <div class="preset-title">开箱速填<span id="preset-name">默认模板</span></div>
+    <div class="chips" id="preset-values"><span>评价 · 非常好</span><span>难度 / 内容 / 进度 · 适中</span><span>助教 · 作业反馈</span></div>
+    <p class="preset-caption" id="preset-caption">PPT为主、板书为辅 · 课外1–2小时 · 教师改进：师生交流</p>
+  </section>
+  <button id="apply" disabled><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m13 3-8 11h6l-1 7 9-12h-7l1-6Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>一键速填</button>
+  <p class="action-hint">只补空白，保留你已经填写的答案</p>
+  <div id="msg" role="status" aria-live="polite"></div>
+  <section class="batch-section" aria-label="当前任务批量提交">
+    <div class="batch-actions"><button id="batch" disabled>全部速填并提交</button><button id="stop-batch" hidden disabled>停止</button></div>
+    <p class="batch-note">点击后按当前规则逐教师、逐课程提交当前任务的全部问卷，保留已有答案。遇到必答题缺失或失败会停止，可随时点击“停止”。</p>
+    <div id="batch-state" role="status" aria-live="polite"></div>
+  </section>
+  <details>
+    <summary>预览与高级设置</summary>
+    <div class="secondary-actions">
+      <button id="preview" disabled>预览待填答案</button><button id="clear" disabled>清除高亮</button>
+      <button id="refill" disabled>按模板重填</button><button id="settings">自定义规则</button>
+    </div>
+    <label class="auto"><input type="checkbox" id="autosubmit" disabled> 本次填完后尝试提交（勾选仅生效一次）</label>
+  </details>
+  <script src="popup.js"></script>
+</body>
+</html>

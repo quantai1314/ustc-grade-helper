@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>USTC评教助手 - 规则设置</title>
+<style>
+  body { font: 14px/1.6 -apple-system, "Microsoft YaHei", sans-serif; max-width: 720px; margin: 24px auto; padding: 0 16px; }
+  h1 { font-size: 18px; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { border-bottom: 1px solid #eee; padding: 6px; text-align: left; }
+  input[type=text] { width: 100%; box-sizing: border-box; padding: 4px; }
+  button { padding: 6px 14px; border: 1px solid #1677ff; background: #1677ff; color: #fff; border-radius: 6px; cursor: pointer; }
+  button.ghost { background: #fff; color: #1677ff; }
+  button:disabled { opacity: .5; cursor: default; }
+  .row { margin: 12px 0; }
+</style>
+</head>
+<body>
+  <h1>规则设置</h1>
+  <p>规则按顺序匹配，命中即停。「题目包含」为关键词，多个关键词用英文逗号分隔（任一命中即可）。</p>
+  <table>
+    <thead><tr><th>启用</th><th>题目包含</th><th>策略</th><th>策略参数</th><th></th></tr></thead>
+    <tbody id="rules"></tbody>
+  </table>
+  <div class="row"><button id="add" class="ghost">+ 添加规则</button></div>
+  <div class="row">
+    未匹配必答题的处理：
+    <select id="unmatched">
+      <option value="highlight">仅高亮提醒（默认，需手动填）</option>
+      <option value="best">自动选最高档选项</option>
+    </select>
+  </div>
+  <div class="row">
+    <button id="save">保存</button>
+    <button id="reset" class="ghost">恢复默认</button>
+    <span id="msg" role="status" aria-live="polite"></span>
+  </div>
+  <script src="../content/engine.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>USTC评教助手 DOM 回归</title>
+<style>body{font:15px/1.6 system-ui;margin:24px}#result{white-space:pre-wrap}#area{padding:16px;border:1px solid #ddd}label{display:block}textarea{width:90%;height:70px}</style>
+<h1>内容脚本浏览器回归</h1>
+<p>仅在本地生成的演示问卷运行，不连接或提交真实平台。</p>
+<pre id="result">运行中…</pre><div id="area"></div>
+<script>
+let ruleset, storageGet, listener;
+window.chrome={storage:{sync:{get:async()=>storageGet?storageGet():({ruleset})}},runtime:{onMessage:{addListener:fn=>listener=fn}}};
+</script>
+<script src="../content/engine.js?v=1.2.0-final"></script>
+<script src="../content/selectors.js?v=1.2.0-final"></script>
+<script src="../content/content.js?v=1.2.0-final"></script>
+<script>
+(async()=>{
+  const area=document.getElementById('area');
+  const result=document.getElementById('result');
+  const log=[];
+  let failures=0, submits=0, ignored=0, changes=0;
+  const assert=(ok,message)=>{if(!ok)throw Error(message)};
+  const send=(type,extra={})=>new Promise(resolve=>listener({type,...extra},{},resolve));
+  const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
+  const rule=(strategy,extra={})=>({id:'r1',enabled:true,match:{titleIncludes:['评价']},action:{strategy,...extra}});
+  function form({type='single',title='总体评价',options=['非常好','一般','差'],required=true,readonly=false,hidden=false}={}){
+    area.innerHTML=`<div class="ant-tabs-tab-active">演示教师</div><div class="index__subject--test" ${hidden?'hidden':''}>
+      <div class="index__title--test">${required?'<span class="index__necessary--test">*</span>':''}${title}</div>
+      ${type==='text'?'<textarea></textarea>':options.map((text,i)=>`<div><label class="ant-${type==='multi'?'checkbox':'radio'}-wrapper"><input type="${type==='multi'?'checkbox':'radio'}" name="answer" value="${i}">${text}</label></div>`).join('')}
+      </div><button class="index__submit--test">提交</button><button id="ignore">忽略</button>`;
+    submits=0;ignored=0;changes=0;ruleset=undefined;storageGet=undefined;
+    area.querySelector('.index__submit--test').onclick=()=>submits++;
+    area.querySelector('#ignore').onclick=()=>ignored++;
+    area.addEventListener('change',()=>changes++,{once:true});
+    if(readonly){
+      const btn=area.querySelector('.index__submit--test');btn.disabled=true;btn.textContent='已提交';
+      area.querySelectorAll('input').forEach((el,i)=>{if(i===0)el.checked=true;else {el.disabled=true;el.closest('label').classList.add('ant-radio-wrapper-disabled')}});
+      if(area.querySelector('textarea'))area.querySelector('textarea').disabled=true;
+    }
+    return [...area.querySelectorAll('input')];
+  }
+  async function test(name,fn){
+    try{await fn();log.push('PASS '+name)}catch(e){failures++;log.push('FAIL '+name+': '+e.message)}
+    result.textContent=log.join('\n');
+  }
+  await test('非问卷不显示0题成功，隐藏问卷不参与填选',async()=>{
+    area.innerHTML='';assert((await send('GET_STATUS')).reason==='no-questionnaire','空页');
+    form({hidden:true});assert((await send('APPLY')).reason==='no-questionnaire','隐藏题目');
+  });
+  await test('已提交问卷可预览、清除高亮，禁止填选或提交',async()=>{
+    form({readonly:true});const status=await send('GET_STATUS');
+    assert(status.readonly&&status.total===1&&status.matched===1,'只读识别');
+    assert((await send('PREVIEW')).marked===1,'预览');
+    assert(area.querySelectorAll('.ugh-mark').length===1,'标记');
+    assert((await send('APPLY',{autoSubmit:true})).reason==='readonly'&&submits===0,'只读保护');
+    await send('CLEAR');assert(!area.querySelector('.ugh-mark'),'清除');
+  });
+  await test('切换问卷后重新提取，按label取选项，不依赖width样式',async()=>{
+    form();await send('GET_STATUS');const inputs=form({title:'新的难度题'});
+    assert((await send('GET_STATUS')).matched===0,'题干更新');
+    await send('APPLY');assert(inputs.every(el=>!el.checked),'旧规则未作用于新题');
+    form();assert((await send('APPLY')).filled===1,'新问卷填选');
+  });
+  await test('多选重复应用不会取消已选项',async()=>{
+    const inputs=form({type:'multi',options:['方面一','方面二','其他']});
+    ruleset={rules:[rule('contains',{keyword:'方面'})]};
+    assert((await send('APPLY')).filled===2,'首次填选');
+    assert((await send('APPLY')).filled===0,'重复填选');
+    assert(inputs[0].checked&&inputs[1].checked&&!inputs[2].checked,'选择保持');
+  });
+  await test('速填保留手动答案，明确重填才替换单选与多选',async()=>{
+    let inputs=form();inputs[1].checked=true;
+    assert((await send('APPLY')).filled===0&&inputs[1].checked,'保留手动单选');
+    await send('APPLY',{overwrite:true});assert(inputs[0].checked&&!inputs[1].checked,'重填单选');
+    inputs=form({type:'multi',options:['方面一','方面二','其他']});inputs[2].checked=true;
+    ruleset={rules:[rule('contains',{keyword:'方面'})]};
+    await send('APPLY');assert(!inputs[0].checked&&inputs[2].checked,'保留整个已答多选');
+    await send('APPLY',{overwrite:true});assert(inputs[0].checked&&inputs[1].checked&&!inputs[2].checked,'重填精确多选');
+    const status=await send('GET_STATUS');assert(status.answered===1&&status.required===1,'实际完成数');
+  });
+  await test('主观题触发原生input/change且不重复覆盖相同值',async()=>{
+    form({type:'text'});ruleset={rules:[rule('fillText',{text:'建议增加"例题"'})]};
+    let inputs=0;area.querySelector('textarea').addEventListener('input',()=>inputs++);
+    assert((await send('APPLY')).filled===1,'文本填入');
+    assert(area.querySelector('textarea').value==='建议增加"例题"'&&inputs===1&&changes===1,'文本与事件');
+    assert((await send('APPLY')).filled===0&&inputs===1,'相同值保持');
+  });
+  await test('主观题字数计数变化不被误判为换页',async()=>{
+    form({type:'text'});ruleset={rules:[rule('fillText',{text:'测试'})]};
+    const counter=document.createElement('span');counter.className='index__numCount--test';counter.textContent='输入字0/3000';
+    area.querySelector('.index__title--test').append(counter);
+    area.querySelector('textarea').addEventListener('input',()=>counter.textContent='输入字2/3000');
+    const r=await send('APPLY',{autoSubmit:true});assert(r.submitted&&submits===1,'字数变化不影响同一问卷');
+  });
+  await test('禁用的选项与文本框不被修改',async()=>{
+    let inputs=form();inputs[0].disabled=true;await send('APPLY');assert(!inputs[0].checked,'禁用选项');
+    form({type:'text'});ruleset={rules:[rule('fillText',{text:'测试'})]};
+    area.querySelector('textarea').readOnly=true;await send('APPLY');assert(area.querySelector('textarea').value==='','只读文本');
+  });
+  await test('读取规则期间换页时取消操作',async()=>{
+    const inputs=form();let release;storageGet=()=>new Promise(resolve=>release=resolve);
+    const pending=send('APPLY',{autoSubmit:true});
+    area.querySelector('.index__title--test').textContent='另一张问卷';release({});
+    assert((await pending).reason==='page-changed'&&inputs.every(el=>!el.checked)&&submits===0,'异步换页保护');
+  });
+  await test('并发APPLY只接受一次',async()=>{
+    form();let release;storageGet=()=>new Promise(resolve=>release=resolve);
+    const pending=send('APPLY');assert((await send('APPLY')).reason==='busy','并发拒绝');
+    release({});assert((await pending).filled===1,'首个完成');
+  });
+  await test('自动提交只对本次显式请求生效',async()=>{
+    form();const first=await send('APPLY',{autoSubmit:true});assert(first.submitted&&submits===1,'本次提交');
+    form();const second=await send('APPLY');assert(!second.submitted&&submits===0,'下次默认手动');
+  });
+  await test('必答题留空时不自动提交',async()=>{
+    form({title:'课程难度'});const response=await send('APPLY',{autoSubmit:true});
+    assert(response.reason==='unanswered'&&submits===0,'空答拦截');
+  });
+  await test('等候提交按钮时切换教师，取消旧提交',async()=>{
+    form();area.querySelector('.index__submit--test').disabled=true;
+    const pending=send('APPLY',{autoSubmit:true});await tick();
+    area.querySelector('.ant-tabs-tab-active').textContent='另一位教师';
+    area.querySelector('.index__submit--test').disabled=false;
+    assert((await pending).reason==='page-changed'&&submits===0,'教师切换保护');
+  });
+  await test('等候提交按钮超时返回可见原因',async()=>{
+    form();area.querySelector('.index__submit--test').disabled=true;
+    const realNow=Date.now;let time=0;Date.now=()=>time+=16000;
+    try{assert((await send('APPLY',{autoSubmit:true})).reason==='submit-timeout'&&submits===0,'等候超时')}
+    finally{Date.now=realNow}
+  });
+  await test('存储失败会响应错误，恢复后仍可填选',async()=>{
+    form();storageGet=async()=>{throw Error('quota')};
+    assert((await send('APPLY')).reason==='storage-error','读取失败');
+    storageGet=undefined;assert((await send('APPLY')).filled===1,'锁释放');
+  });
+  await test('编辑区、按钮、组合键、输入法和只读页面不会触发快捷操作',async()=>{
+    const inputs=form();const button=area.querySelector('button');
+    button.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',bubbles:true}));await tick();
+    assert(inputs.every(el=>!el.checked),'按钮回车');
+    const editable=document.createElement('div');editable.contentEditable='true';area.append(editable);
+    editable.dispatchEvent(new KeyboardEvent('keyup',{key:'Backspace',bubbles:true}));
+    document.body.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',ctrlKey:true,bubbles:true}));
+    document.body.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',isComposing:true,bubbles:true}));await tick();
+    assert(inputs.every(el=>!el.checked)&&ignored===0,'编辑或组合键');
+    document.body.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',bubbles:true}));await tick();
+    assert(inputs[0].checked&&submits===0,'普通回车仅填选');
+    form({readonly:true});document.body.dispatchEvent(new KeyboardEvent('keyup',{key:'Backspace',bubbles:true}));
+    assert(ignored===0,'只读禁止忽略');
+  });
+  result.dataset.failures=String(failures);
+  result.dataset.tests=String(log.length);
+  result.textContent+='\n\n'+(failures?'FAILED':'ALL PASSED')+` (${log.length-failures}/${log.length})`;
+})();
+</script>
+</html>
