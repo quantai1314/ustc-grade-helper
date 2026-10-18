@@ -1,4 +1,5 @@
-dist/
+dist/*
+!dist/ustc-grade-helper.user.js
 node_modules/
 
 # 本地真实页面快照和第三方页面资源，不公开发布。

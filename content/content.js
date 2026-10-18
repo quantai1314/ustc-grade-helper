@@ -61,8 +61,8 @@
     return { entries, context, signature, button, buttonText: button?.textContent, values };
   }
 
-  function sameForm(a, b) {
-    return a.signature === b.signature && a.button === b.button && a.buttonText === b.buttonText &&
+  function sameForm(a, b, checkButtonText = true) {
+    return a.signature === b.signature && a.button === b.button && (!checkButtonText || a.buttonText === b.buttonText) &&
       a.values === b.values && a.entries.length === b.entries.length &&
       a.entries.every((c, i) => c.blockEl === b.entries[i].blockEl && c.inputEl === b.entries[i].inputEl &&
         c.optionEls.every((el, j) => el === b.entries[i].optionEls[j]));
@@ -258,21 +258,38 @@
   function notices(selector) {
     return [...document.querySelectorAll(selector)].filter(isVisible);
   }
-  async function confirmSubmission(id, oldButton, oldNotices) {
+  async function confirmSubmission(id, oldButton, oldNotices, scope, detailsUrl) {
     const start = Date.now();
-    const confirmedDialogs = new Set();
+    const clickedButtons = new Map();
+    let received = false;
+    const successText = text => /(?:提交|评价|评教)(?:已)?(?:成功|完成)|成功(?:提交|评价|评教)|感谢.*(?:评价|评教)/.test(compact(text));
     batch.phase = 'confirming';
     while (batchActive(id)) {
+      if (location.href !== detailsUrl && taskScope() !== scope) fail('left-task');
       if (notices(S.submitError).some(el => compact(el.textContent) && oldNotices.get(el) !== el.textContent)) fail('submission-failed');
-      if (/已提交|已完成/.test(oldButton.textContent) ||
-          notices(S.submitSuccess).some(el => oldNotices.get(el) !== el.textContent && /提交|评价|评教/.test(el.textContent))) return;
-      // Only handle the visible submission dialog, never a global primary button.
-      for (const dialog of notices(S.submitDialog)) {
-        if (confirmedDialogs.has(dialog) || !/提交/.test(dialog.textContent)) continue;
+      const dialogs = notices(S.submitDialog).filter(el => oldNotices.get(el) !== el.textContent);
+      const successDialogs = dialogs.filter(el => successText(el.textContent));
+      received ||= /已提交|已完成/.test(oldButton.textContent) || successDialogs.length > 0 ||
+        notices(S.submitSuccess).some(el => oldNotices.get(el) !== el.textContent && successText(el.textContent));
+      // The platform can acknowledge success in a modal whose primary action advances
+      // to the next teacher/course. Drain that modal before inspecting the old form.
+      for (const dialog of successDialogs.length ? successDialogs : dialogs.filter(el => /提交/.test(el.textContent))) {
         const button = [...dialog.querySelectorAll('button')].find(el => isVisible(el) && !el.disabled &&
-          /^(确定|确认|提交|确认提交|确定提交)$/.test(compact(el.textContent)));
-        if (button) { confirmedDialogs.add(dialog); button.click(); }
+          /^(确定|确认|提交|确认提交|确定提交|下一位教师|下一课程)$/.test(compact(el.textContent)));
+        if (!button || clickedButtons.get(button) === dialog.textContent) continue;
+        const text = compact(button.textContent);
+        if (!successDialogs.includes(dialog) && /^(下一位教师|下一课程)$/.test(text)) continue;
+        clickedButtons.set(button, dialog.textContent);
+        const old = capture();
+        button.click();
+        if (/^(下一位教师|下一课程)$/.test(text)) {
+          return { old, phase: text === '下一位教师' ? 'next-teacher' : 'next-course' };
+        }
+        break;
       }
+      // Even when the old submit button already reads "submitted", dismiss a visible
+      // success modal first. A delayed dismissal must not trigger clicks behind it.
+      if (received && !successDialogs.some(isVisible)) return;
       if (Date.now() - start > 20000) fail('submission-unconfirmed');
       await wait();
     }
@@ -353,13 +370,21 @@
           else {
             batch.phase = 'filling';
             const button = submitButton();
-            const oldNotices = new Map(notices(S.submitSuccess + ',' + S.submitError).map(el => [el, el.textContent]));
+            const oldNotices = new Map(notices(S.submitSuccess + ',' + S.submitError + ',' + S.submitDialog).map(el => [el, el.textContent]));
             const result = await apply(true, false, id);
             if (!result.ok || !result.submitted) fail(result.reason || 'submission-unconfirmed');
-            await confirmSubmission(id, button, oldNotices);
+            const continuation = await confirmSubmission(id, button, oldNotices, scope, detailsUrl);
             if (!batchActive(id)) fail('stopped');
             batch.completed++;
             visited.add(key);
+            if (continuation) {
+              batch.phase = continuation.phase;
+              const old = continuation.old;
+              // Changing the old button to "submitted" does not prove that the
+              // next questionnaire has loaded. Require changed fields or nodes.
+              await waitReady(id, scope, now => now.context !== old.context && !sameForm(now, old, false), detailsUrl);
+              continue;
+            }
             // Some platform versions advance immediately after a successful submit.
             if (questionnaireKey() !== key) continue;
           }

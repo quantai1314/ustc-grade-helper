@@ -24,7 +24,7 @@
     area.append(block);
   });
   const submit=document.createElement('button');submit.className='index__submit--demo demo-submit';submit.textContent='提交演示问卷';submit.onclick=()=>submits++;area.append(submit);
-  const source=document.createElement('script');source.src='../dist/ustc-grade-helper.user.js?v=1.2.0-final';await new Promise((resolve,reject)=>{source.onload=resolve;source.onerror=reject;document.body.append(source)});
+  const source=document.createElement('script');source.src='../dist/ustc-grade-helper.user.js?v=1.2.1';await new Promise((resolve,reject)=>{source.onload=resolve;source.onerror=reject;document.body.append(source)});
   const root=document.getElementById('ugh-userscript-root').shadowRoot,launcher=root.getElementById('ugh-launcher'),panel=root.getElementById('ugh-panel');
   const main=id=>root.querySelector('.ugh-popup').querySelector('#'+id);
   const tick=()=>new Promise(resolve=>setTimeout(resolve,30));

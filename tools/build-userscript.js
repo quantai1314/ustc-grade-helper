@@ -2,7 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
-const read = name => fs.readFileSync(path.join(root, name), 'utf8').replace(/^\uFEFF/, '');
+const read = name => fs.readFileSync(path.join(root, name), 'utf8').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
 const project = JSON.parse(read('userscript/metadata.json'));
 function html(name, className) {
   const source = read(name);

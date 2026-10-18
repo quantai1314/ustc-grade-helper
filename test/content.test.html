@@ -10,9 +10,9 @@
 let ruleset, storageGet, listener;
 window.chrome={storage:{sync:{get:async()=>storageGet?storageGet():({ruleset})}},runtime:{onMessage:{addListener:fn=>listener=fn}}};
 </script>
-<script src="../content/engine.js?v=1.2.0-final"></script>
-<script src="../content/selectors.js?v=1.2.0-final"></script>
-<script src="../content/content.js?v=1.2.0-final"></script>
+<script src="../content/engine.js?v=1.2.1"></script>
+<script src="../content/selectors.js?v=1.2.1"></script>
+<script src="../content/content.js?v=1.2.1"></script>
 <script>
 (async()=>{
   const area=document.getElementById('area');

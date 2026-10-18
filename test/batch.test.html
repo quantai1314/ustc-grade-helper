@@ -5,7 +5,7 @@
 <script>
 let receiveMessage,ruleset,storageRead;
 window.chrome={storage:{sync:{get:async()=>storageRead?storageRead():({ruleset})}},runtime:{onMessage:{addListener:fn=>receiveMessage=fn}}};
-</script><script src="../content/engine.js?v=1.2.0-final"></script><script src="../content/selectors.js?v=1.2.0-final"></script><script src="../content/content.js?v=1.2.0-final"></script>
+</script><script src="../content/engine.js?v=1.2.1"></script><script src="../content/selectors.js?v=1.2.1"></script><script src="../content/content.js?v=1.2.1"></script>
 <script>
 (async()=>{
 const area=document.getElementById('area'),output=document.getElementById('result');
@@ -31,9 +31,19 @@ function render(){
  clicks++;record.value=[...q.querySelectorAll('input')].findIndex(n=>n.checked);
  if(mode==='failure'){const error=document.createElement('div');error.className='ant-message-error';error.textContent='提交失败，请重试';area.append(error);return}
  if(mode==='silent')return;
- const complete=()=>{record.done=true;button.textContent='已提交';button.disabled=true;const success=document.createElement('div');success.className='ant-message-success';success.textContent='提交成功';area.append(success);
+ if(mode==='unrelated-dialog'){const dialog=document.createElement('div');dialog.className='ant-modal';dialog.textContent='选择下一步操作';const next=document.createElement('button');next.className='ant-btn ant-btn-primary';next.textContent='下一位教师';next.onclick=()=>confirmed++;dialog.append(next);area.append(dialog);return}
+ const complete=()=>{record.done=true;
+ if(mode.startsWith('success-dialog')){
+ if(record.successReadonly){button.textContent='已提交';button.disabled=true}
+ const dialog=record.dialog||document.createElement('div');dialog.className='ant-modal';dialog.innerHTML='<div class="ant-modal-confirm-body">提交成功！</div>';
+ const next=record.dialogButton||document.createElement('button');next.className='ant-btn ant-btn-primary';next.textContent=teacher+1<courses[course].length?'下一位教师':course+1<courses.length?'下一课程':'确 定';
+ next.onclick=()=>{confirmed++;dialog.remove();button.textContent='已提交';button.disabled=true;
+ if(teacher+1<courses[course].length){teacher++;if(mode==='success-dialog-delay'){group.querySelectorAll('[role=tab]').forEach((n,j)=>{n.className=j===teacher?'ant-tabs-tab-active ant-tabs-tab':'ant-tabs-tab';n.setAttribute('aria-selected',String(j===teacher))});setTimeout(render,1000)}else render()}
+ else if(course+1<courses.length){course++;teacher=0;navigations++;if(mode==='success-dialog-delay'){route();setTimeout(render,1000)}else render()}
+ else renderList()};dialog.append(next);area.append(dialog);return}
+ button.textContent='已提交';button.disabled=true;const success=document.createElement('div');success.className='ant-message-success';success.textContent='提交成功';area.append(success);
  if(record.autoNext&&teacher+1<courses[course].length){teacher++;render();const toast=document.createElement('div');toast.className='ant-message-success';toast.textContent='提交成功';area.append(toast)}};
- if(record.confirm){const dialog=document.createElement('div');dialog.className='ant-modal';dialog.textContent='确认提交本问卷？';const ok=document.createElement('button');ok.textContent='确 定';ok.onclick=()=>{confirmed++;dialog.remove();complete()};dialog.append(ok);area.append(dialog)}else complete();
+ if(record.confirm){const dialog=document.createElement('div');dialog.className='ant-modal';dialog.textContent='确认提交本问卷？';const ok=document.createElement('button');ok.textContent='确 定';ok.onclick=()=>{confirmed++;if(record.reuseConfirm){record.dialog=dialog;record.dialogButton=ok}else dialog.remove();complete()};dialog.append(ok);area.append(dialog)}else complete();
  };
  const next=document.createElement('button');next.textContent='下一课程';next.disabled=course===courses.length-1&&mode!=='cycle';next.onclick=()=>{navigations++;course=(course+1)%courses.length;teacher=0;if(mode==='delay'){route();setTimeout(render,1000)}else render()};area.append(next);
 }
@@ -53,6 +63,30 @@ await test('逐教师逐课程提交，确认成功后才前进，跳过已提�
 });
 await test('教师标签或URL先变化，旧表单延迟一秒才更新时仍不漏评',async()=>{
  await setup([[{},{}],[{}]],'delay');const state=await run();assert(state.phase==='completed'&&state.completed===3&&state.skipped===0&&clicks===3,'等待真实表单更新');
+});
+await test('提交成功只有弹窗回执时，点击下一位教师和下一课程继续全部问卷',async()=>{
+ await setup([[{},{}],[{}]],'success-dialog');const state=await run();
+ assert(state.phase==='completed'&&state.completed===3&&clicks===3&&confirmed===3&&navigations===1,'成功弹窗可连续处理');assert(courses.flat().every(n=>n.done),'未遗漏问卷');
+});
+await test('成功弹窗跳转先改变标签或URL、延迟更新表单时不重复或漏提交',async()=>{
+ await setup([[{},{}],[{}]],'success-dialog-delay');const state=await run();
+ assert(state.phase==='completed'&&state.completed===3&&state.skipped===0&&clicks===3&&confirmed===3,'等待新表单后再填选');
+});
+await test('提交按钮已变只读时仍处理成功弹窗，不点击弹窗后面的课程按钮',async()=>{
+ await setup([[{successReadonly:true},{successReadonly:true}],[{successReadonly:true}]],'success-dialog');const state=await run();
+ assert(state.phase==='completed'&&state.completed===3&&confirmed===3&&navigations===1,'不能提前返回而遗留遮罩');
+});
+await test('同一个确定按钮从提交确认框复用到成功弹窗时两步都能处理',async()=>{
+ await setup([[{confirm:true,reuseConfirm:true}]],'success-dialog');const state=await run();
+ assert(state.phase==='completed'&&state.completed===1&&clicks===1&&confirmed===2,'复用弹窗和按钮正常');
+});
+await test('成功弹窗开始跳转后停止，保留已提交计数且不继续下一份',async()=>{
+ await setup([[{},{}]],'success-dialog-delay');await send('START_BATCH');await until(async()=>confirmed===1&&(await getBatch()).phase==='next-teacher');await send('STOP_BATCH');await new Promise(r=>setTimeout(r,1100));const state=await getBatch();
+ assert(state.reason==='stopped'&&state.completed===1&&clicks===1,'跳转期间停止生效');
+});
+await test('无成功回执的其他弹窗，即使有下一位教师主按钮也不误点',async()=>{
+ await setup([[{},{}]],'unrelated-dialog');await send('START_BATCH');await until(()=>clicks===1);await until(async()=>(await getBatch()).phase==='confirming');clockOffset=25000;await until(async()=>!(await getBatch()).running);const state=await getBatch();
+ assert(state.reason==='submission-unconfirmed'&&state.completed===0&&confirmed===0,'不能盲点全局primary按钮');clockOffset=0;
 });
 await test('从最后一门课程启动也会回任务列表补齐前面未完成课程',async()=>{
  await setup([[{}],[{}]],'task-list');course=1;render();const state=await run();assert(state.phase==='completed'&&state.completed===2&&courses.flat().every(n=>n.done),'补齐前面课程');assert(location.hash.includes('/my-task/details/'),'回列表确认全部完成');
