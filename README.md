@@ -25,6 +25,8 @@ node tools/build-userscript.js
 
 构建后的 `.user.js` 纳入 GitHub 仓库，供 Greasy Fork 从固定源码地址同步；`dist/` 中的其他发布凭证及临时产物仍不纳入仓库。
 
+Greasy Fork 已连接本仓库 `main` 分支的构建脚本和 `docs/greasyfork-listing.md`，并启用自动检查与 GitHub `push` Webhook。发布新版时，递增 `userscript/metadata.json` 的版本、执行构建和必要验证，再将源码与 `dist/ustc-grade-helper.user.js` 一同提交并推送到 `main`，油叉便会同步更新；仅修改源码而未构建不会更新已发布脚本。GitHub Release 附件仍需单独发布。
+
 用户脚本在平台右下角提供可拖动并记住位置的“评教助手”入口，内置完整速填模板，面板分别显示全部题目进度和必答进度；一键速填保留已有答案，按模板重填可明确覆盖。通过脚本管理器的 GM 存储保存规则和入口位置。单页速填默认不提交；“全部速填并提交”会处理当前任务中的教师和课程问卷，确认成功后继续，可随时停止。具体默认规则、操作方法、限制和数据处理见 [油叉发布说明](docs/greasyfork-listing.md)。
 
 当前发布状态与验证记录见 [用户脚本发布记录](docs/greasyfork-release.md)。

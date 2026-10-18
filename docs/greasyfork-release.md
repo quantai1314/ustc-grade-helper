@@ -91,3 +91,15 @@
 - 构建及 JS 语法检查通过，产物为 `dist/ustc-grade-helper.user.js`，版本 `1.2.1`。构建统一使用 LF 换行，保证 GitHub 下载产物与网页提交源码一致。SHA-256：`5033A01764752D5AE0AFB8F3CCE05288C0419B17ECB3D567626F0F79F09A18E5`。
 - 学校平台当前停在统一身份认证登录页，本次未执行真实问卷提交；所有填写和提交验证使用本地模拟问卷及模拟 GM API。
 - Greasy Fork 原脚本 `600722` 已发布 `1.2.1`；附加说明同步更新。后续发布改为从 GitHub 构建产物同步。
+- GitHub Release `v1.2.1` 已发布，仅包含 `ustc-grade-helper.user.js` 和 `SHA256SUMS.txt`。实际下载附件及 GitHub Raw 源码的 SHA-256 均与本地一致。
+
+## GitHub → Greasy Fork 自动同步
+
+已于 2026-10-18 配置并验证：
+
+- 源码：`https://raw.githubusercontent.com/quantai1314/ustc-grade-helper/main/dist/ustc-grade-helper.user.js`。
+- 默认附加信息：`https://raw.githubusercontent.com/quantai1314/ustc-grade-helper/main/docs/greasyfork-listing.md`，格式为 Markdown。
+- Greasy Fork 保持自动检查，GitHub 仓库同时启用原生 `push` Webhook，使用 JSON、HTTPS 校验和 Greasy Fork 账号提供的签名密钥；密钥不保存在仓库中。
+- GitHub 测试 `push` 实际投递返回 HTTP 200；Greasy Fork 响应 `updated_scripts` 包含原脚本 `600722`，`updated_failed` 为空。管理页显示源码地址及最后成功同步状态。
+- 油叉安装下载会自动加入 `@downloadURL`、`@updateURL`；去除这两行平台生成的元信息后，公开下载源码与本地/GitHub 产物逐字一致。
+- 后续需先更新 `userscript/metadata.json`、构建、验证，再把构建后的 `.user.js` 连同源码推送到 `main`。仅推送源文件不会自动运行本地构建。GitHub Release 的附件发布单独进行。
