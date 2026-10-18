@@ -113,7 +113,13 @@ renderForm();
     assert(savedRules.rules.length===defaultRuleCount&&setting('rules').querySelectorAll('tr').length===defaultRuleCount,'恢复默认');
     renderForm();commands[0].fn();await until(()=>main('counter').textContent.endsWith('/3'));
   });
-  let batchCourse=0,batchTeacher=0,batchClicks=0,batchCountdown=false,batchDialogs=false,batchContinues=0;const batchDone=new Set();
+  let batchCourse=0,batchTeacher=0,batchClicks=0,batchCountdown=false,batchDialogs=false,batchContinues=0,batchMiddle=false;const batchDone=new Set();
+  function nextBatchCourse(){
+    batchCourse++;batchTeacher=0;
+    if(!batchMiddle){renderBatchForm();return}
+    location.hash='#/middle-page/'+encodeURIComponent('/my-task/answer/zkd/UnFinished/1/5/Middle/5/demo'+batchCourse+'/5?semester=test');
+    document.getElementById('questions').replaceChildren();setTimeout(renderBatchForm,600);
+  }
   function renderBatchForm(){
     location.hash='#/my-task/answer/zkd/UnFinished/1/5/Middle/5/demo'+batchCourse+'/5?semester=test';
     renderForm();const area=document.getElementById('questions'),old=area.querySelector('.ant-tabs-tab-active');
@@ -122,9 +128,9 @@ renderForm();
     const button=area.querySelector('.index__submit--demo');button.disabled=batchCountdown;
     button.onclick=()=>{batchClicks++;batchDone.add(batchCourse*2+batchTeacher);button.textContent='已提交';button.disabled=true;
       if(batchDialogs){const dialog=document.createElement('div');dialog.className='ant-modal';dialog.textContent='提交成功';const action=document.createElement('button');action.className='ant-btn ant-btn-primary';action.textContent=batchTeacher===0?'下一位教师':batchCourse===0?'下一课程':'确定';
-        action.onclick=()=>{batchContinues++;dialog.remove();if(batchTeacher===0){batchTeacher=1;renderBatchForm()}else if(batchCourse===0){batchCourse=1;batchTeacher=0;renderBatchForm()}else details.click()};dialog.append(action);area.append(dialog)}
+        action.onclick=()=>{batchContinues++;dialog.remove();if(batchTeacher===0){batchTeacher=1;renderBatchForm()}else if(batchCourse===0){nextBatchCourse()}else details.click()};dialog.append(action);area.append(dialog)}
     };
-    const next=document.createElement('button');next.textContent='下一课程';next.disabled=batchCourse===1;next.onclick=()=>{batchCourse++;batchTeacher=0;renderBatchForm()};area.append(next);
+    const next=document.createElement('button');next.textContent='下一课程';next.disabled=batchCourse===1;next.onclick=nextBatchCourse;area.append(next);
     const details=document.createElement('a');details.href='#/my-task/details/UnFinished/0/1/Middle/5/5?semester=test';details.textContent='演示任务';details.onclick=()=>{location.hash=details.hash;area.replaceChildren();const pane=document.createElement('div');pane.className='ant-tabs-tabpane-active';const table=document.createElement('table');table.className='ant-table';const body=document.createElement('tbody');table.append(body);if(batchDone.size!==4){const row=document.createElement('tr');row.setAttribute('data-row-key','pending');row.innerHTML='<td>仍未完成</td>';body.append(row)}pane.append(table);area.append(pane)};area.append(details);
   }
   await test('完整浮动界面的批量按钮逐教师逐课程完成四份问卷并显示结果',async()=>{
@@ -143,6 +149,12 @@ renderForm();
     batchCourse=0;batchTeacher=0;batchClicks=0;batchDialogs=true;batchContinues=0;batchDone.clear();renderBatchForm();await until(()=>!main('batch').disabled);main('batch').click();
     await until(()=>main('batch-state').textContent.includes('当前任务已处理完成'),15000);
     assert(batchClicks===4&&batchContinues===4&&main('batch-state').textContent.includes('已完成 4 份'),'成功弹窗四份连续完成');assert(!document.querySelector('.ant-modal'),'最终成功弹窗已关闭');
+  });
+  await test('完整构建脚本经过平台中转页后继续提交并核对任务列表',async()=>{
+    batchCourse=0;batchTeacher=0;batchClicks=0;batchContinues=0;batchMiddle=true;batchDone.clear();renderBatchForm();await until(()=>!main('batch').disabled);main('batch').click();
+    await until(()=>main('batch-state').textContent.includes('当前任务已处理完成'),15000);
+    assert(batchClicks===4&&batchContinues===4&&batchDone.size===4&&main('batch-state').textContent.includes('已完成 4 份'),'中转后全部四份提交一次');
+    assert(location.hash.startsWith('#/my-task/details/'),'返回列表核对完成');
   });
   output.dataset.failures=String(failures);output.dataset.tests=String(logs.length);
   output.textContent+='\n\n'+(failures?'FAILED':'ALL PASSED')+` (${logs.length-failures}/${logs.length})`;

@@ -230,10 +230,20 @@
     const active = tabs.find(el => el.matches(S.activeTeacher));
     return location.href + '|' + (active ? tabs.indexOf(active) + ':' + compact(active.textContent) : 'current');
   }
-  function taskScope() {
+  function taskScope(hash = location.hash) {
     // The course segment may change; the evaluation task and semester must not.
-    const match = location.hash.match(/^(#\/my-task\/answer\/[^/]+\/[^/]+\/[^/]+\/[^/]+\/[^/]+\/[^/]+)\//);
-    return match ? match[1] + (location.hash.split('?')[1] || '') : location.origin + location.pathname;
+    const match = hash.match(/^(#\/my-task\/answer\/[^/]+\/[^/]+\/[^/]+\/[^/]+\/[^/]+\/[^/]+)\/[^/?]+\/([^/?]+)(\?[^#]*)?$/);
+    return match ? match[1] + '/' + match[2] + (match[3] || '') : null;
+  }
+  function isTaskTransition(scope) {
+    // The platform remounts the next course through /middle-page/<encoded route>.
+    // Only tolerate a redirect back into the task that started this batch.
+    const prefix = '#/middle-page/';
+    if (!scope || !location.hash.startsWith(prefix)) return false;
+    try {
+      const target = decodeURIComponent(location.hash.slice(prefix.length));
+      return taskScope('#' + target) === scope;
+    } catch { return false; }
   }
   function loading() {
     return [...document.querySelectorAll(S.loading)].some(isVisible);
@@ -243,9 +253,10 @@
     let stable = null, since = 0;
     while (batchActive(id)) {
       if (detailsUrl && location.href === detailsUrl) return null;
-      if (taskScope() !== scope) fail('left-task');
+      const transitioning = isTaskTransition(scope);
+      if (!transitioning && taskScope() !== scope) fail('left-task');
       const now = capture();
-      const ready = now.entries.length && submitButton() && !loading() && (!changed || changed(now));
+      const ready = !transitioning && now.entries.length && submitButton() && !loading() && (!changed || changed(now));
       if (ready) {
         if (!stable || !isCurrent(stable) || !sameForm(now, stable)) { stable = now; since = Date.now(); }
         if (Date.now() - since >= 450) return now;
@@ -265,6 +276,11 @@
     const successText = text => /(?:提交|评价|评教)(?:已)?(?:成功|完成)|成功(?:提交|评价|评教)|感谢.*(?:评价|评教)/.test(compact(text));
     batch.phase = 'confirming';
     while (batchActive(id)) {
+      if (isTaskTransition(scope)) {
+        if (Date.now() - start > 20000) fail('submission-unconfirmed');
+        await wait();
+        continue;
+      }
       if (location.href !== detailsUrl && taskScope() !== scope) fail('left-task');
       if (notices(S.submitError).some(el => compact(el.textContent) && oldNotices.get(el) !== el.textContent)) fail('submission-failed');
       const dialogs = notices(S.submitDialog).filter(el => oldNotices.get(el) !== el.textContent);
@@ -432,9 +448,11 @@
     const detailsUrl = [...document.querySelectorAll('a[href]')]
       .find(el => el.origin === location.origin && el.hash.startsWith('#/my-task/details/'))?.href;
     if (!detailsUrl) return { ok: false, reason: 'navigation-unavailable' };
+    const scope = taskScope();
+    if (!scope) return { ok: false, reason: 'navigation-unavailable' };
     Object.assign(batch, { running: true, phase: 'filling', completed: 0, skipped: 0, reason: null });
     const id = ++batchRunId;
-    runBatch(id, taskScope(), detailsUrl);
+    runBatch(id, scope, detailsUrl);
     return { ok: true, batch: { ...batch } };
   }
   function stopBatch(reason = 'stopped') {
