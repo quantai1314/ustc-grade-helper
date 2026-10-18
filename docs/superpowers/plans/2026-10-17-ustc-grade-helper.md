@@ -1,5 +1,7 @@
 # USTC评教助手 Implementation Plan
 
+> 历史文档：浏览器扩展方案已停止维护和发布，当前实现与构建方式以仓库 README 和用户脚本源码为准。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 按设计文档从零实现 MV3 扩展"USTC评教助手"（规则引擎 + dry-run 预览 + 安全提交），做到打包就绪，商店上传前停止。

@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8').replace(/^\uFEFF/, '');
-const manifest = JSON.parse(read('manifest.json'));
+const project = JSON.parse(read('userscript/metadata.json'));
 function html(name, className) {
   const source = read(name);
   const style = source.match(/<style>([\s\S]*?)<\/style>/i)[1]
@@ -17,7 +17,7 @@ function html(name, className) {
 const metadata = `// ==UserScript==
 // @name         USTC评教助手
 // @namespace    https://greasyfork.org/users/1573189
-// @version      ${manifest.version}
+// @version      ${project.version}
 // @description  中科大评教问卷完整模板速填，保留手动答案，显示全部题目和必答进度，支持拖动入口及一键逐教师逐课程提交，可随时停止。
 // @author       quantai1314
 // @match        https://tqm.ustc.edu.cn/index.html*

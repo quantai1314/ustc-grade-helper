@@ -1,13 +1,13 @@
 # USTC评教助手
 
-中国科学技术大学教学质量管理平台的非官方填写辅助工具。当前发布目标为 Greasy Fork 用户脚本；项目仍保留 Manifest V3 扩展源码。
+中国科学技术大学教学质量管理平台的非官方评教用户脚本，仅发布于 Greasy Fork 和 GitHub。
 
 ## 安装与下载
 
 - [Greasy Fork 安装与更新](https://greasyfork.org/zh-CN/scripts/600722-ustc%E8%AF%84%E6%95%99%E5%8A%A9%E6%89%8B)
-- [GitHub v1.2.0 发布页](https://github.com/quantai1314/ustc-grade-helper/releases/tag/v1.2.0)：下载用户脚本和扩展开发包。
+- [GitHub v1.2.0 发布页](https://github.com/quantai1314/ustc-grade-helper/releases/tag/v1.2.0)：下载用户脚本及 SHA-256 校验文件。
 
-用户脚本需支持现代 GM API 的脚本管理器。扩展 ZIP 用于开发者模式加载，尚未发布到浏览器扩展商店。
+安装前需要支持现代 GM API 的脚本管理器。
 
 ## 用户脚本
 
@@ -27,9 +27,10 @@ node tools/build-userscript.js
 
 ## 源码与验证
 
-- `content/`：共用规则引擎、问卷提取、预览和填选逻辑。
-- `popup/`、`options/`：共用面板和规则编辑器；在用户脚本中通过私有适配对象运行。
+- `content/`：规则引擎、问卷提取、预览和填选逻辑。
+- `popup/`、`options/`：面板和规则编辑器，通过用户脚本内部的私有适配对象运行。
 - `userscript/shell.js`：浮动界面、GM 菜单及页面切换适配。
+- `userscript/metadata.json`：用户脚本版本号。
 - `tools/build-userscript.js`：用户脚本构建。
 
 ```powershell
@@ -39,7 +40,7 @@ python -m http.server 0 --bind 127.0.0.1
 
 根据服务器输出的端口，在浏览器打开 `/test/content.test.html`、`/test/userscript.test.html`、`/test/quickfill.test.html` 与 `/test/batch.test.html`，运行核心 DOM、完整用户脚本、速填拖动与批量提交回归。用户脚本集成页使用模拟的 GM 存储，不会修改或提交学校平台的真实问卷。
 
-`manifest.json` 可供扩展开发使用；`python tools/package.py` 打包运行文件。浏览器商店审查记录见 [2026-10-17 审查](docs/review-2026-10-17.md)。
+页面数据处理及 GM 存储说明见 [隐私说明](docs/privacy-policy.md)。早期扩展方案仅作历史记录，不再构建或发布。
 
 ## 测试数据与授权
 
