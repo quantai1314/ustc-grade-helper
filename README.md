@@ -1,55 +1,22 @@
 # USTC评教助手
 
-中国科学技术大学教学质量管理平台的非官方评教用户脚本，仅发布于 Greasy Fork 和 GitHub。
+中国科学技术大学教学质量管理平台的非官方评教脚本，支持一键速填和批量提交。
 
-## 安装与下载
+## 安装
+
+先安装 Tampermonkey 等脚本管理器，再通过以下入口安装脚本：
 
 - [Greasy Fork 安装与更新](https://greasyfork.org/zh-CN/scripts/600722-ustc%E8%AF%84%E6%95%99%E5%8A%A9%E6%89%8B)
-- [GitHub 发布页](https://github.com/quantai1314/ustc-grade-helper/releases/latest)：下载用户脚本及 SHA-256 校验文件。
+- [GitHub 下载](https://github.com/quantai1314/ustc-grade-helper/releases/latest)
 
-安装前需要支持现代 GM API 的脚本管理器。
+## 使用
 
-## 用户脚本
+登录 [教学质量管理平台](https://tqm.ustc.edu.cn/index.html)，打开待评问卷，点击右下角“评教助手”。
 
-已发布：[Greasy Fork：USTC评教助手](https://greasyfork.org/zh-CN/scripts/600722-ustc%E8%AF%84%E6%95%99%E5%8A%A9%E6%89%8B)，当前版本 `1.2.1`。
+- **一键速填**：按默认模板补全空白，保留已有答案，填完后自行检查并提交。
+- **全部速填并提交**：连续处理当前任务的教师、课程问卷，可随时停止。
+- **自定义规则**：在高级设置中调整答案；“按模板重填”会覆盖已有答案。
 
-`1.2.1` 修复批量提交卡在成功弹窗的问题，支持弹窗中的“下一位教师”“下一课程”和“确定”，等待下一份表单加载后继续。
+默认模板将总体评价设为“非常好”，难度、内容、进度设为“适中”，具体意见留空。请按实际情况调整。
 
-构建命令（无需安装 npm 依赖）：
-
-```powershell
-node tools/build-userscript.js
-```
-
-输出：`dist/ustc-grade-helper.user.js`。构建会将本项目的规则引擎、页面逻辑、面板和规则编辑器完整内嵌到单一可读脚本中，不加载远程代码或答案库。
-
-构建后的 `.user.js` 纳入 GitHub 仓库，供 Greasy Fork 从固定源码地址同步；`dist/` 中的其他发布凭证及临时产物仍不纳入仓库。
-
-Greasy Fork 已连接本仓库 `main` 分支的构建脚本和 `docs/greasyfork-listing.md`，并启用自动检查与 GitHub `push` Webhook。发布新版时，递增 `userscript/metadata.json` 的版本、执行构建和必要验证，再将源码与 `dist/ustc-grade-helper.user.js` 一同提交并推送到 `main`，油叉便会同步更新；仅修改源码而未构建不会更新已发布脚本。GitHub Release 附件仍需单独发布。
-
-用户脚本在平台右下角提供可拖动并记住位置的“评教助手”入口，内置完整速填模板，面板分别显示全部题目进度和必答进度；一键速填保留已有答案，按模板重填可明确覆盖。通过脚本管理器的 GM 存储保存规则和入口位置。单页速填默认不提交；“全部速填并提交”会处理当前任务中的教师和课程问卷，确认成功后继续，可随时停止。具体默认规则、操作方法、限制和数据处理见 [油叉发布说明](docs/greasyfork-listing.md)。
-
-当前发布状态与验证记录见 [用户脚本发布记录](docs/greasyfork-release.md)。
-
-## 源码与验证
-
-- `content/`：规则引擎、问卷提取、预览和填选逻辑。
-- `popup/`、`options/`：面板和规则编辑器，通过用户脚本内部的私有适配对象运行。
-- `userscript/shell.js`：浮动界面、GM 菜单及页面切换适配。
-- `userscript/metadata.json`：用户脚本版本号。
-- `tools/build-userscript.js`：用户脚本构建。
-
-```powershell
-node --test test/engine.test.js test/popup.test.js test/options.test.js
-python -m http.server 0 --bind 127.0.0.1
-```
-
-根据服务器输出的端口，在浏览器打开 `/test/content.test.html`、`/test/userscript.test.html`、`/test/quickfill.test.html` 与 `/test/batch.test.html`，运行核心 DOM、完整用户脚本、速填拖动与批量提交回归。用户脚本集成页使用模拟的 GM 存储，不会修改或提交学校平台的真实问卷。
-
-页面数据处理及 GM 存储说明见 [隐私说明](docs/privacy-policy.md)。早期扩展方案仅作历史记录，不再构建或发布。
-
-## 测试数据与授权
-
-公开测试只包含题目和选项，以及本地生成的演示问卷，不含账号信息、真实填写内容或学校页面的第三方代码。原始页面快照不纳入公开仓库。
-
-本项目暂未授予额外开源许可证；源码公开不等于提供开源许可。
+[详细使用说明](docs/greasyfork-listing.md) · [隐私说明](docs/privacy-policy.md)
