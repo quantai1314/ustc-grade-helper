@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../popup/popup.js'), 'utf8');
 const settle = () => new Promise(setImmediate);
-const idleBatch = { running: false, phase: null, completed: 0, skipped: 0, reason: null };
+const idleBatch = { running: false, phase: 'idle', completed: 0, skipped: 0, reason: null };
 const validStatus = { ok: true, total: 2, required: 2, answered: 0, answeredTotal: 0, matched: 1, matchedTotal: 1, unmatchedTitles: ['其他'], readonly: false, batch: idleBatch };
 
 async function makePopup({ status = validStatus, action = async () => ({ ok: true, filled: 1, submitted: false }), query } = {}) {
@@ -33,6 +33,15 @@ async function makePopup({ status = validStatus, action = async () => ({ ok: tru
   await settle();
   return { elements, messages, intervals, settingsOpened: () => settingsOpened, setStatus: next => { currentStatus = next; } };
 }
+
+test('尚未启动批量时不显示零计数，停止结果仍然保留', async () => {
+  const popup = await makePopup();
+  assert.equal(popup.elements['batch-state'].textContent, '');
+  popup.setStatus({ ...validStatus, batch: { ...idleBatch, phase: 'stopped', reason: 'stopped' } });
+  popup.intervals[0].callback();
+  await settle();
+  assert.match(popup.elements['batch-state'].textContent, /已停止.*已完成 0 份/);
+});
 
 test('每次应用显式传递自动提交选择，重开 popup 后恢复默认不提交', async () => {
   const first = await makePopup();

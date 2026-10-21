@@ -6,11 +6,11 @@ let loaded = false;
 function row(rule) {
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><input type="checkbox" class="en"></td>
-    <td><input type="text" class="kw"></td>
-    <td><select class="st">${STRATEGIES.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select></td>
-    <td><input type="text" class="arg" placeholder="关键词或填充文本"></td>
-    <td><button class="ghost del">删除</button></td>`;
+    <td class="rule-enabled"><span class="rule-order" aria-hidden="true"></span><label class="rule-toggle"><input type="checkbox" class="en" aria-label="启用这条规则"><span>启用规则</span></label></td>
+    <td class="rule-match"><label class="rule-field"><span class="field-label">题目包含</span><input type="text" class="kw" placeholder="多个关键词用英文逗号分隔"></label></td>
+    <td class="rule-strategy"><label class="rule-field"><span class="field-label">填写策略</span><select class="st">${STRATEGIES.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select></label></td>
+    <td class="rule-argument"><label class="rule-field"><span class="field-label">策略参数</span><input type="text" class="arg" placeholder="关键词或填充文本"></label></td>
+    <td class="rule-actions"><button class="ghost del" type="button" aria-label="删除这条规则">删除</button></td>`;
   tr.querySelector('.en').checked = rule.enabled !== false;
   tr.querySelector('.kw').value = rule.match.titleIncludes.join(',');
   tr.querySelector('.st').value = rule.action.strategy;

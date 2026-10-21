@@ -12,56 +12,44 @@ function createShell(popupHtml, optionsHtml) {
       [hidden] { display: none !important; }
       button { font: inherit; }
       button:focus-visible { outline: 3px solid #a5b4fc; outline-offset: 3px; }
-      #ugh-launcher { display: flex; align-items: center; gap: 9px; padding: 11px 15px;
-        border: 1px solid #ffffff50; border-radius: 16px; background: linear-gradient(135deg, #4263eb, #5c54ce);
-        color: white; cursor: grab; box-shadow: 0 5px 20px #3949ab35, 0 1px 3px #24357822;
+      #ugh-launcher { display: flex; align-items: center; gap: 9px; padding: 10px 14px;
+        border: 1px solid #355ac2; border-radius: 14px; background: #3f66d5;
+        color: white; cursor: grab; box-shadow: 0 4px 16px #294caa30, 0 1px 3px #24357822;
         pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
-      #ugh-launcher:hover { background: linear-gradient(135deg, #3658de, #5146c2); }
+      #ugh-launcher:hover { background: #3156bc; }
       #ugh-launcher.dragging { cursor: grabbing; box-shadow: 0 9px 25px #3949ab45; }
       .ugh-launcher-icon { display: grid; place-items: center; width: 26px; height: 26px;
         border-radius: 8px; background: #ffffff21; font-size: 16px; font-weight: 700; line-height: 1; }
       .ugh-launcher-text { font-weight: 600; letter-spacing: .4px; }
       .ugh-grip { opacity: .6; font-size: 15px; letter-spacing: -3px; padding-right: 3px; }
-      #ugh-panel { position: fixed; width: min(380px, calc(100vw - 24px)); max-height: calc(100vh - 24px);
-        overflow: auto; overscroll-behavior: contain; border: 1px solid #e2e7f2; border-radius: 20px;
-        background: #fff; box-shadow: 0 16px 60px #23386726, 0 3px 12px #23386712; pointer-events: auto; }
+      #ugh-panel { position: fixed; width: min(392px, calc(100vw - 24px)); max-height: calc(100vh - 24px);
+        overflow: auto; overscroll-behavior: contain; border: 1px solid #dfe5ef; border-radius: 16px;
+        background: #fff; box-shadow: 0 16px 48px #23386722, 0 3px 12px #23386710; pointer-events: auto;
+        scrollbar-width: thin; scrollbar-color: #c9d3e4 transparent; }
       #ugh-panel.settings { width: min(760px, calc(100vw - 24px)); }
-      #ugh-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 6px;
-        padding: 13px 16px 0; }
-      .ugh-toolbar-label { margin-right: auto; color: #8b93a7; font-size: 11px; font-weight: 700; letter-spacing: 1.4px; }
-      #ugh-toolbar button { padding: 4px 9px; border: 0; border-radius: 7px;
-        background: #f3f5fa; color: #68728a; cursor: pointer; font-size: 12px; }
+      #ugh-toolbar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: flex-end; gap: 6px;
+        padding: 9px 14px; border-bottom: 1px solid #edf0f5; background: #fff; }
+      .ugh-toolbar-label { margin-right: auto; color: #63728a; font-size: 11px; font-weight: 600; letter-spacing: .5px; }
+      #ugh-toolbar button { min-height: 28px; padding: 3px 9px; border: 0; border-radius: 6px;
+        background: #f1f4f9; color: #53627b; cursor: pointer; font-size: 12px; }
       #ugh-toolbar button:hover { color: #4263eb; background: #edf0ff; }
-      .ugh-popup { padding: 10px 20px 16px; }
-      .ugh-note { margin: 0; padding: 13px 20px 16px; border-top: 1px solid #edf0f7;
-        background: #fafbfe; font-size: 11px; line-height: 1.8; color: #8a93a6; }
+      .ugh-popup { padding: 16px 18px; }
+      .ugh-note { margin: 0; padding: 10px 18px; border-top: 1px solid #edf0f5;
+        background: #f8fafc; font-size: 11px; line-height: 1.6; color: #63728a; }
       @media (prefers-reduced-motion: no-preference) { #ugh-launcher { transition: box-shadow .15s, background .15s; } }
     </style>
     <section id="ugh-panel" aria-label="USTC评教助手" hidden>
-      <div id="ugh-toolbar"><span class="ugh-toolbar-label">USTC · 评教助手</span><button id="ugh-back" hidden>返回面板</button><button id="ugh-close" aria-label="收起评教助手">收起</button></div>
+      <div id="ugh-toolbar"><span class="ugh-toolbar-label">问卷速填 · 非官方工具</span><button id="ugh-back" hidden>← 返回</button><button id="ugh-close" aria-label="收起评教助手" title="收起面板（Esc）">收起</button></div>
       <div class="ugh-popup">${popupHtml}</div>
       <div id="ugh-options-host" hidden></div>
-      <p class="ugh-note">非官方工具 · 单页速填后可检查例外；批量提交由“全部速填并提交”启动，可随时停止。规则与悬浮位置保存在脚本管理器中。</p>
+      <p class="ugh-note">请按实际情况调整答案 · 拖动下方入口可移动面板</p>
     </section>
     <button id="ugh-launcher" aria-expanded="false" aria-controls="ugh-panel" title="点击打开，拖动调整位置"><span class="ugh-launcher-icon" aria-hidden="true">✓</span><span class="ugh-launcher-text">评教助手</span><span class="ugh-grip" aria-hidden="true">⠿</span></button>`;
   const optionsHost = root.getElementById('ugh-options-host');
   const optionsRoot = optionsHost.attachShadow({ mode: 'open' });
   optionsRoot.innerHTML = `<div class="ugh-options">${optionsHtml}</div><style>
     :host { display: block; color-scheme: light; } * { box-sizing: border-box; } [hidden] { display: none !important; }
-    .ugh-options { padding: 8px 20px 20px; overflow-x: auto; color: #27324b;
-      font: 13px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; }
-    h1 { margin: 4px 0 8px; font-size: 20px; letter-spacing: -.5px; } p { color: #7b859a; }
-    table { width: 100%; min-width: 550px; border-collapse: collapse; }
-    td, th { padding: 9px 5px; border-bottom: 1px solid #edf0f7; text-align: left; }
-    th { color: #8a93a6; font-size: 12px; font-weight: 500; }
-    input, select, button { font: inherit; } input[type=text], select { max-width: 100%; padding: 7px;
-      border: 1px solid #dce2f0; border-radius: 7px; background: #fff; color: #34405b; }
-    input[type=text] { width: 100%; } input[type=checkbox] { accent-color: #4263eb; }
-    button { padding: 8px 13px; border: 1px solid #4263eb; border-radius: 8px; background: #4263eb; color: #fff; cursor: pointer; }
-    button.ghost { background: #fff; color: #4263eb; border-color: #dce2f0; }
-    button:disabled { opacity: .5; cursor: default; } button:hover { filter: brightness(.97); }
-    :focus-visible { outline: 2px solid #a5b4fc; outline-offset: 2px; } .row { margin: 14px 0; }
-    #msg { color: #65728b; margin-left: 8px; }
+    .ugh-options { padding: 18px; }
   </style>`;
   document.documentElement.appendChild(host);
 
@@ -169,6 +157,7 @@ function createShell(popupHtml, optionsHtml) {
       optionsHost.hidden = !settings;
       back.hidden = !settings;
       panel.classList.toggle('settings', settings);
+      panel.scrollTop = 0;
       placePanel();
       shell.scheduleRefresh();
     },
@@ -176,6 +165,7 @@ function createShell(popupHtml, optionsHtml) {
       autoSubmit.checked = false;
       panel.hidden = true;
       launcher.setAttribute('aria-expanded', 'false');
+      launcher.focus({ preventScroll: true });
     },
     start() {
       launcher.addEventListener('pointerdown', event => {
@@ -212,6 +202,12 @@ function createShell(popupHtml, optionsHtml) {
       };
       root.getElementById('ugh-close').onclick = () => shell.close();
       back.onclick = () => shell.show();
+      root.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !event.isComposing && !panel.hidden) {
+          event.stopPropagation();
+          shell.close();
+        }
+      });
       // popup 的 onclick 已先读取本次勾选；点击后立即复位，下一次须重新勾选。
       for (const id of ['apply', 'refill']) {
         const button = popup.querySelector('#' + id);

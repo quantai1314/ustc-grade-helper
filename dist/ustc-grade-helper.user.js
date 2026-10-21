@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         USTC评教助手
 // @namespace    https://greasyfork.org/users/1573189
-// @version      1.2.2
+// @version      1.2.3
 // @description  中科大评教问卷完整模板速填，保留手动答案，显示全部题目和必答进度，支持拖动入口及一键逐教师逐课程提交，可随时停止。
 // @author       quantai1314
 // @match        https://tqm.ustc.edu.cn/index.html*
@@ -698,56 +698,44 @@ function createShell(popupHtml, optionsHtml) {
       [hidden] { display: none !important; }
       button { font: inherit; }
       button:focus-visible { outline: 3px solid #a5b4fc; outline-offset: 3px; }
-      #ugh-launcher { display: flex; align-items: center; gap: 9px; padding: 11px 15px;
-        border: 1px solid #ffffff50; border-radius: 16px; background: linear-gradient(135deg, #4263eb, #5c54ce);
-        color: white; cursor: grab; box-shadow: 0 5px 20px #3949ab35, 0 1px 3px #24357822;
+      #ugh-launcher { display: flex; align-items: center; gap: 9px; padding: 10px 14px;
+        border: 1px solid #355ac2; border-radius: 14px; background: #3f66d5;
+        color: white; cursor: grab; box-shadow: 0 4px 16px #294caa30, 0 1px 3px #24357822;
         pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
-      #ugh-launcher:hover { background: linear-gradient(135deg, #3658de, #5146c2); }
+      #ugh-launcher:hover { background: #3156bc; }
       #ugh-launcher.dragging { cursor: grabbing; box-shadow: 0 9px 25px #3949ab45; }
       .ugh-launcher-icon { display: grid; place-items: center; width: 26px; height: 26px;
         border-radius: 8px; background: #ffffff21; font-size: 16px; font-weight: 700; line-height: 1; }
       .ugh-launcher-text { font-weight: 600; letter-spacing: .4px; }
       .ugh-grip { opacity: .6; font-size: 15px; letter-spacing: -3px; padding-right: 3px; }
-      #ugh-panel { position: fixed; width: min(380px, calc(100vw - 24px)); max-height: calc(100vh - 24px);
-        overflow: auto; overscroll-behavior: contain; border: 1px solid #e2e7f2; border-radius: 20px;
-        background: #fff; box-shadow: 0 16px 60px #23386726, 0 3px 12px #23386712; pointer-events: auto; }
+      #ugh-panel { position: fixed; width: min(392px, calc(100vw - 24px)); max-height: calc(100vh - 24px);
+        overflow: auto; overscroll-behavior: contain; border: 1px solid #dfe5ef; border-radius: 16px;
+        background: #fff; box-shadow: 0 16px 48px #23386722, 0 3px 12px #23386710; pointer-events: auto;
+        scrollbar-width: thin; scrollbar-color: #c9d3e4 transparent; }
       #ugh-panel.settings { width: min(760px, calc(100vw - 24px)); }
-      #ugh-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 6px;
-        padding: 13px 16px 0; }
-      .ugh-toolbar-label { margin-right: auto; color: #8b93a7; font-size: 11px; font-weight: 700; letter-spacing: 1.4px; }
-      #ugh-toolbar button { padding: 4px 9px; border: 0; border-radius: 7px;
-        background: #f3f5fa; color: #68728a; cursor: pointer; font-size: 12px; }
+      #ugh-toolbar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: flex-end; gap: 6px;
+        padding: 9px 14px; border-bottom: 1px solid #edf0f5; background: #fff; }
+      .ugh-toolbar-label { margin-right: auto; color: #63728a; font-size: 11px; font-weight: 600; letter-spacing: .5px; }
+      #ugh-toolbar button { min-height: 28px; padding: 3px 9px; border: 0; border-radius: 6px;
+        background: #f1f4f9; color: #53627b; cursor: pointer; font-size: 12px; }
       #ugh-toolbar button:hover { color: #4263eb; background: #edf0ff; }
-      .ugh-popup { padding: 10px 20px 16px; }
-      .ugh-note { margin: 0; padding: 13px 20px 16px; border-top: 1px solid #edf0f7;
-        background: #fafbfe; font-size: 11px; line-height: 1.8; color: #8a93a6; }
+      .ugh-popup { padding: 16px 18px; }
+      .ugh-note { margin: 0; padding: 10px 18px; border-top: 1px solid #edf0f5;
+        background: #f8fafc; font-size: 11px; line-height: 1.6; color: #63728a; }
       @media (prefers-reduced-motion: no-preference) { #ugh-launcher { transition: box-shadow .15s, background .15s; } }
     </style>
     <section id="ugh-panel" aria-label="USTC评教助手" hidden>
-      <div id="ugh-toolbar"><span class="ugh-toolbar-label">USTC · 评教助手</span><button id="ugh-back" hidden>返回面板</button><button id="ugh-close" aria-label="收起评教助手">收起</button></div>
+      <div id="ugh-toolbar"><span class="ugh-toolbar-label">问卷速填 · 非官方工具</span><button id="ugh-back" hidden>← 返回</button><button id="ugh-close" aria-label="收起评教助手" title="收起面板（Esc）">收起</button></div>
       <div class="ugh-popup">${popupHtml}</div>
       <div id="ugh-options-host" hidden></div>
-      <p class="ugh-note">非官方工具 · 单页速填后可检查例外；批量提交由“全部速填并提交”启动，可随时停止。规则与悬浮位置保存在脚本管理器中。</p>
+      <p class="ugh-note">请按实际情况调整答案 · 拖动下方入口可移动面板</p>
     </section>
     <button id="ugh-launcher" aria-expanded="false" aria-controls="ugh-panel" title="点击打开，拖动调整位置"><span class="ugh-launcher-icon" aria-hidden="true">✓</span><span class="ugh-launcher-text">评教助手</span><span class="ugh-grip" aria-hidden="true">⠿</span></button>`;
   const optionsHost = root.getElementById('ugh-options-host');
   const optionsRoot = optionsHost.attachShadow({ mode: 'open' });
   optionsRoot.innerHTML = `<div class="ugh-options">${optionsHtml}</div><style>
     :host { display: block; color-scheme: light; } * { box-sizing: border-box; } [hidden] { display: none !important; }
-    .ugh-options { padding: 8px 20px 20px; overflow-x: auto; color: #27324b;
-      font: 13px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; }
-    h1 { margin: 4px 0 8px; font-size: 20px; letter-spacing: -.5px; } p { color: #7b859a; }
-    table { width: 100%; min-width: 550px; border-collapse: collapse; }
-    td, th { padding: 9px 5px; border-bottom: 1px solid #edf0f7; text-align: left; }
-    th { color: #8a93a6; font-size: 12px; font-weight: 500; }
-    input, select, button { font: inherit; } input[type=text], select { max-width: 100%; padding: 7px;
-      border: 1px solid #dce2f0; border-radius: 7px; background: #fff; color: #34405b; }
-    input[type=text] { width: 100%; } input[type=checkbox] { accent-color: #4263eb; }
-    button { padding: 8px 13px; border: 1px solid #4263eb; border-radius: 8px; background: #4263eb; color: #fff; cursor: pointer; }
-    button.ghost { background: #fff; color: #4263eb; border-color: #dce2f0; }
-    button:disabled { opacity: .5; cursor: default; } button:hover { filter: brightness(.97); }
-    :focus-visible { outline: 2px solid #a5b4fc; outline-offset: 2px; } .row { margin: 14px 0; }
-    #msg { color: #65728b; margin-left: 8px; }
+    .ugh-options { padding: 18px; }
   </style>`;
   document.documentElement.appendChild(host);
 
@@ -855,6 +843,7 @@ function createShell(popupHtml, optionsHtml) {
       optionsHost.hidden = !settings;
       back.hidden = !settings;
       panel.classList.toggle('settings', settings);
+      panel.scrollTop = 0;
       placePanel();
       shell.scheduleRefresh();
     },
@@ -862,6 +851,7 @@ function createShell(popupHtml, optionsHtml) {
       autoSubmit.checked = false;
       panel.hidden = true;
       launcher.setAttribute('aria-expanded', 'false');
+      launcher.focus({ preventScroll: true });
     },
     start() {
       launcher.addEventListener('pointerdown', event => {
@@ -898,6 +888,12 @@ function createShell(popupHtml, optionsHtml) {
       };
       root.getElementById('ugh-close').onclick = () => shell.close();
       back.onclick = () => shell.show();
+      root.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !event.isComposing && !panel.hidden) {
+          event.stopPropagation();
+          shell.close();
+        }
+      });
       // popup 的 onclick 已先读取本次勾选；点击后立即复位，下一次须重新勾选。
       for (const id of ['apply', 'refill']) {
         const button = popup.querySelector('#' + id);
@@ -940,7 +936,7 @@ function createShell(popupHtml, optionsHtml) {
   const marks = document.createElement('style');
   marks.textContent = ".ugh-mark { outline: 3px solid #faad14 !important; outline-offset: 2px; border-radius: 4px; }\n.ugh-mark-text { outline: 3px dashed #faad14 !important; outline-offset: 2px; }\n";
   document.head.appendChild(marks);
-  shell = createShell("<style>\n  .ugh-popup { width: auto; margin: 0; padding: 20px; box-sizing: border-box; background: #fff; color: #18243c; font: 13px/1.6 \"Segoe UI\", \"Microsoft YaHei\", sans-serif; }\n  .ugh-popup * { box-sizing: border-box; }\n  .ugh-popup .hero { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }\n  .ugh-popup .app-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 13px; background: #edf2ff; color: #4667de; flex-shrink: 0; }\n  .ugh-popup h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.3px; }\n  .ugh-popup .subtitle { margin: 1px 0 0; color: #8992a6; font-size: 11px; }\n  .ugh-popup .status-card { padding: 14px; border: 1px solid #e8edf5; border-radius: 14px; background: #f8faff; }\n  .ugh-popup .status-top { display: flex; align-items: center; justify-content: space-between; color: #6d7991; font-size: 11px; }\n  .ugh-popup #counter { color: #4667de; font-size: 20px; line-height: 1; font-variant-numeric: tabular-nums; }\n  .ugh-popup progress { display: block; appearance: none; width: 100%; height: 6px; margin: 12px 0 9px; border: 0; border-radius: 8px; overflow: hidden; background: #e6ebf6; accent-color: #5574e7; }\n  .ugh-popup progress::-webkit-progress-bar { background: #e6ebf6; border-radius: 8px; }\n  .ugh-popup progress::-webkit-progress-value { background: #5574e7; border-radius: 8px; transition: width .2s; }\n  .ugh-popup .stat { color: #66748c; font-size: 12px; }\n  .ugh-popup .warn { color: #a96a2a; }\n  .ugh-popup #coverage { color: #8e99ad; font-size: 11px; margin-top: 2px; }\n  .ugh-popup #unmatched { font-size: 11px; color: #a96a2a; max-height: 70px; overflow: auto; margin-top: 6px; }\n  .ugh-popup .preset { margin: 16px 0; }\n  .ugh-popup .preset-title { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px; }\n  .ugh-popup .preset-title span { font-size: 10px; color: #7c8ba4; font-weight: 400; letter-spacing: 1px; }\n  .ugh-popup .chips { display: flex; flex-wrap: wrap; gap: 6px; }\n  .ugh-popup .chips span { padding: 3px 8px; border-radius: 6px; background: #f0f3fa; color: #62718d; font-size: 11px; }\n  .ugh-popup .preset-caption { margin: 7px 0 0; color: #939caf; font-size: 10px; }\n  .ugh-popup button { font: inherit; cursor: pointer; border-radius: 10px; transition: background .15s, box-shadow .15s; }\n  .ugh-popup button:focus-visible { outline: 3px solid #abc0ff; outline-offset: 2px; }\n  .ugh-popup button:disabled { opacity: .45; cursor: default; }\n  .ugh-popup #apply { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; padding: 13px; border: 1px solid #4768da; background: #4c6ee0; color: #fff; font-size: 14px; font-weight: 600; box-shadow: 0 4px 10px #4768da24; }\n  .ugh-popup #apply:hover:not(:disabled) { background: #3c5fce; }\n  .ugh-popup .action-hint { margin: 7px 0 0; text-align: center; color: #9aa3b5; font-size: 10px; }\n  .ugh-popup #msg { min-height: 20px; margin: 10px 0 0; font-size: 11px; color: #4867be; overflow-wrap: anywhere; }\n  .ugh-popup .batch-section { margin-top: 12px; padding-top: 13px; border-top: 1px solid #edf0f5; }\n  .ugh-popup .batch-actions { display: flex; gap: 8px; }\n  .ugh-popup #batch { flex: 1; padding: 10px 8px; border: 1px solid #cad5f5; background: #f2f5ff; color: #4864bd; font-size: 12px; font-weight: 600; }\n  .ugh-popup #batch:hover:not(:disabled) { background: #e7edff; }\n  .ugh-popup #stop-batch { padding: 10px 13px; border: 1px solid #e7cdb5; background: #fff8f1; color: #a36c3d; font-size: 12px; }\n  .ugh-popup .batch-note { margin: 7px 0 0; color: #939caf; font-size: 10px; }\n  .ugh-popup #batch-state { margin: 7px 0 0; color: #62718b; font-size: 11px; overflow-wrap: anywhere; }\n  .ugh-popup details { margin-top: 10px; padding-top: 12px; border-top: 1px solid #edf0f5; }\n  .ugh-popup summary { color: #7c899f; cursor: pointer; font-size: 11px; list-style: none; display: flex; justify-content: space-between; }\n  .ugh-popup summary::after { content: '+'; }\n  .ugh-popup details[open] summary::after { content: '−'; }\n  .ugh-popup .secondary-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }\n  .ugh-popup .secondary-actions button { padding: 7px 5px; border: 1px solid #e4eaf4; background: #fff; color: #71809a; font-size: 11px; }\n  .ugh-popup .secondary-actions button:hover:not(:disabled) { background: #f4f7fd; }\n  .ugh-popup .auto { display: flex; align-items: center; gap: 6px; margin-top: 10px; color: #8994a6; font-size: 10px; }\n  .ugh-popup input { accent-color: #5574e7; }\n</style>\n  <header class=\"hero\">\n    <div class=\"app-icon\" aria-hidden=\"true\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M9 5H6a2 2 0 0 0-2 2v13h16V7a2 2 0 0 0-2-2h-3M9 3h6v4H9V3Z\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linejoin=\"round\"/><path d=\"m8 13 3 3 5-6\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div>\n    <div><h1>USTC评教助手</h1><p class=\"subtitle\">预设已就绪，填完再检查例外</p></div>\n  </header>\n  <section class=\"status-card\">\n    <div class=\"status-top\"><span>问卷填写情况</span><strong id=\"counter\">—/—</strong></div>\n    <progress id=\"progress\" value=\"0\" max=\"1\" aria-label=\"问卷填写进度\"></progress>\n    <div class=\"stat\" id=\"status\">正在读取问卷…</div>\n    <div id=\"coverage\"></div><div id=\"unmatched\"></div>\n  </section>\n  <section class=\"preset\">\n    <div class=\"preset-title\">开箱速填<span id=\"preset-name\">默认模板</span></div>\n    <div class=\"chips\" id=\"preset-values\"><span>评价 · 非常好</span><span>难度 / 内容 / 进度 · 适中</span><span>助教 · 作业反馈</span></div>\n    <p class=\"preset-caption\" id=\"preset-caption\">PPT为主、板书为辅 · 课外1–2小时 · 教师改进：师生交流</p>\n  </section>\n  <button id=\"apply\" disabled><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden=\"true\"><path d=\"m13 3-8 11h6l-1 7 9-12h-7l1-6Z\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg>一键速填</button>\n  <p class=\"action-hint\">只补空白，保留你已经填写的答案</p>\n  <div id=\"msg\" role=\"status\" aria-live=\"polite\"></div>\n  <section class=\"batch-section\" aria-label=\"当前任务批量提交\">\n    <div class=\"batch-actions\"><button id=\"batch\" disabled>全部速填并提交</button><button id=\"stop-batch\" hidden disabled>停止</button></div>\n    <p class=\"batch-note\">点击后按当前规则逐教师、逐课程提交当前任务的全部问卷，保留已有答案。遇到必答题缺失或失败会停止，可随时点击“停止”。</p>\n    <div id=\"batch-state\" role=\"status\" aria-live=\"polite\"></div>\n  </section>\n  <details>\n    <summary>预览与高级设置</summary>\n    <div class=\"secondary-actions\">\n      <button id=\"preview\" disabled>预览待填答案</button><button id=\"clear\" disabled>清除高亮</button>\n      <button id=\"refill\" disabled>按模板重填</button><button id=\"settings\">自定义规则</button>\n    </div>\n    <label class=\"auto\"><input type=\"checkbox\" id=\"autosubmit\" disabled> 本次填完后尝试提交（勾选仅生效一次）</label>\n  </details>\n  \n", "<style>\n  .ugh-options { font: 14px/1.6 -apple-system, \"Microsoft YaHei\", sans-serif; max-width: 720px; margin: 0; padding: 0 16px; }\n  h1 { font-size: 18px; }\n  table { width: 100%; border-collapse: collapse; }\n  td, th { border-bottom: 1px solid #eee; padding: 6px; text-align: left; }\n  input[type=text] { width: 100%; box-sizing: border-box; padding: 4px; }\n  button { padding: 6px 14px; border: 1px solid #1677ff; background: #1677ff; color: #fff; border-radius: 6px; cursor: pointer; }\n  button.ghost { background: #fff; color: #1677ff; }\n  button:disabled { opacity: .5; cursor: default; }\n  .row { margin: 12px 0; }\n</style>\n  <h1>规则设置</h1>\n  <p>规则按顺序匹配，命中即停。「题目包含」为关键词，多个关键词用英文逗号分隔（任一命中即可）。</p>\n  <table>\n    <thead><tr><th>启用</th><th>题目包含</th><th>策略</th><th>策略参数</th><th></th></tr></thead>\n    <tbody id=\"rules\"></tbody>\n  </table>\n  <div class=\"row\"><button id=\"add\" class=\"ghost\">+ 添加规则</button></div>\n  <div class=\"row\">\n    未匹配必答题的处理：\n    <select id=\"unmatched\">\n      <option value=\"highlight\">仅高亮提醒（默认，需手动填）</option>\n      <option value=\"best\">自动选最高档选项</option>\n    </select>\n  </div>\n  <div class=\"row\">\n    <button id=\"save\">保存</button>\n    <button id=\"reset\" class=\"ghost\">恢复默认</button>\n    <span id=\"msg\" role=\"status\" aria-live=\"polite\"></span>\n  </div>\n  \n  \n");
+  shell = createShell("<style>\n  .ugh-popup { width: auto; margin: 0; padding: 18px; box-sizing: border-box; background: #fff; color: #21304a; font: 13px/1.6 \"Segoe UI\", \"Microsoft YaHei\", sans-serif; }\n  .ugh-popup * { box-sizing: border-box; }\n  .ugh-popup [hidden] { display: none !important; }\n  .ugh-popup .hero { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }\n  .ugh-popup .app-icon { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid #dce6fb; border-radius: 12px; background: #eff4ff; color: #365fce; flex-shrink: 0; }\n  .ugh-popup h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -.4px; line-height: 1.4; }\n  .ugh-popup .subtitle { margin: 3px 0 0; color: #63728a; font-size: 12px; }\n  .ugh-popup .status-card { padding: 14px 16px; border: 1px solid #dfe7f4; border-radius: 12px; background: #f5f8ff; }\n  .ugh-popup .status-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #51627d; font-size: 12px; font-weight: 600; }\n  .ugh-popup #counter { color: #365fce; font-size: 26px; font-weight: 700; line-height: 1.2; letter-spacing: -1px; font-variant-numeric: tabular-nums; }\n  .ugh-popup progress { display: block; appearance: none; width: 100%; height: 6px; margin: 12px 0 10px; border: 0; border-radius: 8px; overflow: hidden; background: #e1e8f5; accent-color: #4169d5; }\n  .ugh-popup progress::-webkit-progress-bar { background: #e1e8f5; border-radius: 8px; }\n  .ugh-popup progress::-webkit-progress-value { background: #4169d5; border-radius: 8px; }\n  .ugh-popup progress::-moz-progress-bar { background: #4169d5; border-radius: 8px; }\n  .ugh-popup .stat { color: #425570; font-size: 12px; }\n  .ugh-popup .warn { color: #945c1e; }\n  .ugh-popup #coverage { color: #62728b; font-size: 12px; margin-top: 3px; }\n  .ugh-popup #unmatched { font-size: 12px; color: #885619; background: #fff8eb; border-radius: 6px; padding: 7px 9px; max-height: 84px; overflow: auto; overflow-wrap: anywhere; margin-top: 9px; }\n  .ugh-popup #unmatched:empty { display: none; }\n  .ugh-popup .preset { margin: 16px 0; }\n  .ugh-popup .preset-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }\n  .ugh-popup #preset-name { font-size: 13px; font-weight: 600; }\n  .ugh-popup .chips { display: flex; flex-wrap: wrap; gap: 6px; }\n  .ugh-popup .chips span { padding: 4px 8px; border: 1px solid #e8ecf3; border-radius: 6px; background: #f8f9fc; color: #53627b; font-size: 12px; }\n  .ugh-popup .chips b { color: #304766; font-weight: 600; }\n  .ugh-popup .preset-caption { margin: 8px 0 0; color: #63728a; font-size: 12px; }\n  .ugh-popup button { font: inherit; cursor: pointer; border-radius: 9px; }\n  .ugh-popup :focus-visible { outline: 3px solid #a8bff7; outline-offset: 3px; }\n  .ugh-popup button:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }\n  .ugh-popup #settings { padding: 3px 0 3px 8px; border: 0; background: transparent; color: #365fce; font-size: 12px; }\n  .ugh-popup #settings:hover:not(:disabled) { text-decoration: underline; }\n  .ugh-popup #apply { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; min-height: 45px; padding: 10px 12px; border: 1px solid #365fce; background: #3f66d5; color: #fff; font-size: 14px; font-weight: 600; box-shadow: 0 3px 8px #294caa1a; }\n  .ugh-popup #apply:hover:not(:disabled) { background: #3156bc; }\n  .ugh-popup .action-hint { margin: 7px 0 0; text-align: center; color: #62728b; font-size: 12px; }\n  .ugh-popup #msg { margin: 10px 0 0; padding: 9px 11px; border-radius: 7px; background: #edf4ff; font-size: 12px; color: #34558e; overflow-wrap: anywhere; }\n  .ugh-popup #msg:empty { display: none; }\n  .ugh-popup .batch-section { margin-top: 16px; padding: 13px; border: 1px solid #e3e8f0; border-radius: 10px; }\n  .ugh-popup .batch-actions { display: flex; align-items: stretch; gap: 8px; }\n  .ugh-popup #batch { flex: 1; min-width: 0; min-height: 38px; padding: 7px 10px; border: 1px solid #cfdbf6; background: #f0f4ff; color: #3658b3; font-size: 13px; font-weight: 600; }\n  .ugh-popup #batch:hover:not(:disabled) { background: #e5edff; }\n  .ugh-popup #stop-batch { padding: 7px 13px; border: 1px solid #e7bdb6; background: #fff4f1; color: #a33e2d; font-size: 13px; font-weight: 600; }\n  .ugh-popup #stop-batch:hover:not(:disabled) { background: #ffe8e2; }\n  .ugh-popup .batch-note { margin: 8px 0 0; color: #63728a; font-size: 12px; }\n  .ugh-popup #batch-state { margin: 9px 0 0; padding-top: 9px; border-top: 1px solid #e6ebf4; color: #425570; font-size: 12px; overflow-wrap: anywhere; }\n  .ugh-popup #batch-state:empty { display: none; }\n  .ugh-popup #batch-state.running { color: #365fce; }\n  .ugh-popup #batch-state.completed { color: #22734e; }\n  .ugh-popup #batch-state.error { color: #a33e2d; }\n  .ugh-popup details { margin-top: 14px; }\n  .ugh-popup summary { min-height: 30px; align-items: center; color: #53627b; cursor: pointer; font-size: 12px; list-style: none; display: flex; justify-content: space-between; }\n  .ugh-popup summary::-webkit-details-marker { display: none; }\n  .ugh-popup summary::after { content: '⌄'; font-size: 17px; line-height: 1; }\n  .ugh-popup details[open] summary::after { content: '⌃'; }\n  .ugh-popup .secondary-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }\n  .ugh-popup .secondary-actions button { min-height: 36px; padding: 7px; border: 1px solid #dce3ed; background: #fff; color: #4c5f7c; font-size: 12px; }\n  .ugh-popup .secondary-actions button:hover:not(:disabled) { background: #f4f7fd; }\n  .ugh-popup #refill { grid-column: 1 / -1; }\n  .ugh-popup .auto { display: flex; align-items: flex-start; gap: 7px; margin-top: 12px; color: #63728a; font-size: 12px; cursor: pointer; }\n  .ugh-popup input { accent-color: #4169d5; margin: 3px 0 0; flex-shrink: 0; }\n  @media (prefers-reduced-motion: no-preference) { .ugh-popup button { transition: background .15s, box-shadow .15s; } .ugh-popup progress::-webkit-progress-value { transition: width .2s; } }\n</style>\n  <header class=\"hero\">\n    <div class=\"app-icon\" aria-hidden=\"true\"><svg width=\"23\" height=\"23\" viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M9 5H6a2 2 0 0 0-2 2v13h16V7a2 2 0 0 0-2-2h-3M9 3h6v4H9V3Z\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linejoin=\"round\"/><path d=\"m8 13 3 3 5-6\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></div>\n    <div><h1>USTC评教助手</h1><p class=\"subtitle\">按实际评价填写，提交前请核对</p></div>\n  </header>\n  <section class=\"status-card\" aria-label=\"当前问卷进度\">\n    <div class=\"status-top\"><span>当前问卷 · 已填写</span><strong id=\"counter\">—/—</strong></div>\n    <progress id=\"progress\" value=\"0\" max=\"1\" aria-label=\"问卷填写进度\"></progress>\n    <div class=\"stat\" id=\"status\">正在读取问卷…</div>\n    <div id=\"coverage\"></div><div id=\"unmatched\"></div>\n  </section>\n  <section class=\"preset\" aria-label=\"当前填写模板\">\n    <div class=\"preset-title\"><span id=\"preset-name\">默认模板</span><button id=\"settings\">自定义规则 <span aria-hidden=\"true\">→</span></button></div>\n    <div class=\"chips\" id=\"preset-values\"><span>评价 <b>非常好</b></span><span>难度 / 内容 / 进度 <b>适中</b></span><span>助教改进 <b>作业反馈</b></span></div>\n    <p class=\"preset-caption\" id=\"preset-caption\">PPT为主、板书为辅 · 课外1–2小时 · 教师改进：师生交流</p>\n  </section>\n  <button id=\"apply\" disabled><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden=\"true\"><path d=\"m13 3-8 11h6l-1 7 9-12h-7l1-6Z\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></svg>一键速填</button>\n  <p class=\"action-hint\">只补空白，保留已有答案 · 默认不提交</p>\n  <div id=\"msg\" role=\"status\" aria-live=\"polite\"></div>\n  <section class=\"batch-section\" aria-label=\"当前任务批量提交\">\n    <div class=\"batch-actions\"><button id=\"batch\" disabled>全部速填并提交</button><button id=\"stop-batch\" hidden disabled>停止</button></div>\n    <p class=\"batch-note\">自动提交当前任务的所有教师、课程问卷，保留已有答案；遇到缺答或失败会停止。</p>\n    <div id=\"batch-state\" role=\"status\" aria-live=\"polite\"></div>\n  </section>\n  <details>\n    <summary>更多操作</summary>\n    <div class=\"secondary-actions\">\n      <button id=\"preview\" disabled>预览待填答案</button><button id=\"clear\" disabled>清除高亮</button>\n      <button id=\"refill\" disabled>按模板重填（覆盖已有答案）</button>\n    </div>\n    <label class=\"auto\"><input type=\"checkbox\" id=\"autosubmit\" disabled> 本次填完后尝试提交，仅对下一次填选生效</label>\n  </details>\n  \n", "<style>\n  .ugh-options { color: #22344e; background: #fff; padding: 8px 20px 20px;\n    font: 13px/1.65 -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"Microsoft YaHei\", sans-serif;\n    color-scheme: light; }\n  body.ugh-options { max-width: 820px; margin: 0; padding: 24px; }\n  .ugh-options, .ugh-options * { box-sizing: border-box; }\n  .ugh-options h1 { margin: 0 0 6px; color: #172b49; font-size: 22px; font-weight: 700; letter-spacing: -.5px; }\n  .ugh-options p { margin: 0; }\n  .ugh-options .options-intro { margin-bottom: 20px; color: #63728a; }\n  .ugh-options .options-intro strong { font-weight: 600; color: #3d506c; }\n  .ugh-options .rules-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed;\n    border: 1px solid #e0e8f3; border-radius: 12px; overflow: hidden; }\n  .ugh-options th { padding: 10px 8px; background: #f3f7fc; color: #576982; font-size: 12px;\n    font-weight: 600; text-align: left; }\n  .ugh-options th:first-child { width: 52px; text-align: center; }\n  .ugh-options th:nth-child(2) { width: 32%; }\n  .ugh-options th:nth-child(3) { width: 23%; }\n  .ugh-options th:last-child { width: 62px; }\n  .ugh-options td { padding: 11px 7px; border-top: 1px solid #e9eef6; vertical-align: middle; }\n  .ugh-options tbody tr:hover { background: #fafcff; }\n  .ugh-options .rule-enabled { text-align: center; }\n  .ugh-options .rule-toggle { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }\n  .ugh-options .rule-toggle span, .ugh-options .rule-order { display: none; }\n  .ugh-options .rule-field { display: block; min-width: 0; }\n  .ugh-options .field-label, .ugh-options .sr-only { position: absolute; width: 1px; height: 1px;\n    padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }\n  .ugh-options input, .ugh-options select, .ugh-options button { font: inherit; }\n  .ugh-options input[type=text], .ugh-options select { display: block; width: 100%; min-width: 0;\n    padding: 9px 10px; border: 1px solid #d6e1ee; border-radius: 8px; background: #fff; color: #233954; }\n  .ugh-options input::placeholder { color: #8694a9; }\n  .ugh-options input[type=checkbox] { width: 16px; height: 16px; margin: 0; accent-color: #2563eb; cursor: pointer; }\n  .ugh-options button { padding: 9px 15px; border: 1px solid #2563eb; border-radius: 8px;\n    background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; }\n  .ugh-options button:hover { background: #1d4ed8; border-color: #1d4ed8; }\n  .ugh-options button.ghost { background: #fff; color: #365d8e; border-color: #d7e2ef; }\n  .ugh-options button.ghost:hover { background: #f1f6fd; border-color: #a9c2e7; color: #1d4ed8; }\n  .ugh-options button.del { padding: 6px 7px; border-color: transparent; color: #79879a; font-size: 12px; font-weight: 400; }\n  .ugh-options button.del:hover { background: #fff1f2; border-color: #fecdd3; color: #be123c; }\n  .ugh-options button:disabled, .ugh-options input:disabled, .ugh-options select:disabled { opacity: .5; cursor: default; }\n  .ugh-options :focus-visible { outline: 3px solid #aac7fb; outline-offset: 2px; }\n  .ugh-options .row { margin: 16px 0 0; }\n  .ugh-options .add-rule { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }\n  .ugh-options .field-help { color: #75839a; font-size: 12px; }\n  .ugh-options .fallback-setting { display: grid; grid-template-columns: 1fr minmax(0, 290px); gap: 12px 18px;\n    align-items: center; padding: 16px; border: 1px solid #e2eaf5; border-radius: 12px; background: #f8fafd; }\n  .ugh-options .fallback-label { display: block; margin-bottom: 3px; color: #344b69; font-weight: 600; }\n  .ugh-options .options-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px;\n    padding-top: 18px; border-top: 1px solid #e8eef6; }\n  .ugh-options #msg { flex-basis: 100%; color: #4e6481; font-size: 12px; overflow-wrap: anywhere; }\n  .ugh-options #msg:empty { display: none; }\n  @media (max-width: 600px) {\n    .ugh-options { padding: 8px 16px 16px; }\n    body.ugh-options { margin: 0; padding: 20px 16px; }\n    .ugh-options .options-intro { margin-bottom: 16px; }\n    .ugh-options .rules-table { display: block; border: 0; overflow: visible; }\n    .ugh-options thead { display: none; }\n    .ugh-options tbody { display: grid; gap: 12px; counter-reset: rule; }\n    .ugh-options tbody tr { position: relative; display: grid; grid-template-columns: minmax(0, 1fr);\n      gap: 11px; padding: 13px; border: 1px solid #dfe8f4; border-radius: 12px; counter-increment: rule; }\n    .ugh-options td { display: block; min-width: 0; padding: 0; border: 0; }\n    .ugh-options .rule-enabled { display: flex; align-items: center; gap: 10px; min-height: 29px; padding-right: 52px; }\n    .ugh-options .rule-order { display: inline-flex; align-items: center; justify-content: center;\n      min-width: 25px; height: 25px; border-radius: 7px; background: #eaf2ff; color: #3564a5; font-size: 12px; font-weight: 600; }\n    .ugh-options .rule-order::before { content: counter(rule, decimal-leading-zero); }\n    .ugh-options .rule-toggle span { display: inline; color: #506580; font-size: 12px; }\n    .ugh-options .field-label { position: static; display: block; width: auto; height: auto; margin-bottom: 5px;\n      overflow: visible; clip: auto; white-space: normal; color: #657891; font-size: 12px; }\n    .ugh-options .rule-actions { position: absolute; top: 12px; right: 12px; }\n    .ugh-options .fallback-setting { grid-template-columns: minmax(0, 1fr); padding: 14px; }\n    .ugh-options .add-rule { align-items: flex-start; flex-direction: column; }\n  }\n</style>\n  <h1>规则设置</h1>\n  <p class=\"options-intro\"><strong>从上到下匹配，命中第一条后停止。</strong><br>多个题目关键词用英文逗号分隔，任一命中即可。</p>\n  <table class=\"rules-table\" aria-label=\"填写规则，按显示顺序匹配\">\n    <thead><tr><th scope=\"col\">启用</th><th scope=\"col\">题目包含</th><th scope=\"col\">填写策略</th><th scope=\"col\">策略参数</th><th scope=\"col\"><span class=\"sr-only\">操作</span></th></tr></thead>\n    <tbody id=\"rules\"></tbody>\n  </table>\n  <div class=\"row add-rule\"><button id=\"add\" class=\"ghost\" type=\"button\">+ 添加规则</button><span class=\"field-help\">选「包含关键词」或「填充文本」时填写策略参数。</span></div>\n  <div class=\"row fallback-setting\">\n    <div><label class=\"fallback-label\" for=\"unmatched\">未匹配的必答题</label><p class=\"field-help\" id=\"unmatched-help\">没有命中上述规则时，如何处理必答题。</p></div>\n    <select id=\"unmatched\" aria-describedby=\"unmatched-help\">\n      <option value=\"highlight\">仅高亮提醒，手动填写（默认）</option>\n      <option value=\"best\">自动选最高档选项</option>\n    </select>\n  </div>\n  <div class=\"row options-actions\">\n    <button id=\"save\" type=\"button\">保存规则</button>\n    <button id=\"reset\" class=\"ghost\" type=\"button\">恢复默认</button>\n    <span id=\"msg\" role=\"status\" aria-live=\"polite\"></span>\n  </div>\n  \n  \n");
   {
     const document = shell.popupDocument;
 const $ = (id) => document.getElementById(id);
@@ -968,7 +964,7 @@ const REASONS = {
   'navigation-unavailable': '未找到当前任务的课程列表入口，已停止',
   'pending-questionnaires': '任务列表仍有未完成问卷，已停止，请检查平台状态',
   stopped: '已停止后续操作，已发出的提交以平台结果为准',
-  'storage-error': '读取规则失败，请检查扩展设置',
+  'storage-error': '读取规则失败，请检查脚本管理器设置',
   error: '操作失败，请重试并检查页面',
   unavailable: '无法连接问卷页面，请刷新页面后重试'
 };
@@ -991,10 +987,13 @@ function batchRunning() {
 
 function renderBatch() {
   const batch = status?.batch;
-  if (!batch && !startingBatch && !stoppingBatch) {
+  const idle = !batch || (!batch.running && (!batch.phase || batch.phase === 'idle') && !batch.completed && !batch.skipped && !batch.reason);
+  if (idle && !startingBatch && !stoppingBatch) {
     $('batch-state').textContent = '';
+    $('batch-state').className = '';
     return;
   }
+  $('batch-state').className = startingBatch || stoppingBatch || batch?.running ? 'running' : batch?.phase || '';
   const phase = stoppingBatch ? '正在停止' : startingBatch ? '正在启动' : (BATCH_PHASES[batch.phase] || (batch.running ? '正在处理' : '尚未开始'));
   const reason = batch?.reason ? REASONS[batch.reason] || '处理已停止，请检查当前页面' : '';
   $('batch-state').textContent = `${phase} · 已完成 ${batch?.completed || 0} 份 · 已跳过 ${batch?.skipped || 0} 份${reason ? '；' + reason : ''}`;
@@ -1046,7 +1045,7 @@ async function refresh() {
   const defaultTemplate = status.templateIsDefault !== false;
   $('preset-name').textContent = defaultTemplate ? '默认模板' : '自定义模板';
   $('preset-values').hidden = !defaultTemplate;
-  $('preset-caption').textContent = defaultTemplate ? 'PPT为主、板书为辅 · 课外1–2小时 · 教师改进：师生交流' : '正在使用你的规则，可在高级设置中查看或调整';
+  $('preset-caption').textContent = defaultTemplate ? 'PPT为主、板书为辅 · 课外1–2小时 · 教师改进：师生交流' : '正在使用你的规则，点击“自定义规则”查看或调整';
   const unmatched = available && Array.isArray(status.unmatchedTitles) ? status.unmatchedTitles : [];
   $('unmatched').textContent = unmatched.length ? '未匹配：' + unmatched.join('；') : '';
   renderBatch();
@@ -1134,7 +1133,7 @@ $('settings').onclick = async () => {
   try {
     await chrome.runtime.openOptionsPage();
   } catch (e) {
-    $('msg').textContent = '无法打开规则设置，请从扩展详情页打开';
+    $('msg').textContent = '无法打开规则设置，请从脚本管理器菜单打开';
   }
 };
 
@@ -1157,11 +1156,11 @@ let loaded = false;
 function row(rule) {
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><input type="checkbox" class="en"></td>
-    <td><input type="text" class="kw"></td>
-    <td><select class="st">${STRATEGIES.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select></td>
-    <td><input type="text" class="arg" placeholder="关键词或填充文本"></td>
-    <td><button class="ghost del">删除</button></td>`;
+    <td class="rule-enabled"><span class="rule-order" aria-hidden="true"></span><label class="rule-toggle"><input type="checkbox" class="en" aria-label="启用这条规则"><span>启用规则</span></label></td>
+    <td class="rule-match"><label class="rule-field"><span class="field-label">题目包含</span><input type="text" class="kw" placeholder="多个关键词用英文逗号分隔"></label></td>
+    <td class="rule-strategy"><label class="rule-field"><span class="field-label">填写策略</span><select class="st">${STRATEGIES.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select></label></td>
+    <td class="rule-argument"><label class="rule-field"><span class="field-label">策略参数</span><input type="text" class="arg" placeholder="关键词或填充文本"></label></td>
+    <td class="rule-actions"><button class="ghost del" type="button" aria-label="删除这条规则">删除</button></td>`;
   tr.querySelector('.en').checked = rule.enabled !== false;
   tr.querySelector('.kw').value = rule.match.titleIncludes.join(',');
   tr.querySelector('.st').value = rule.action.strategy;

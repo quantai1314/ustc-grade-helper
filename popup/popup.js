@@ -23,7 +23,7 @@ const REASONS = {
   'navigation-unavailable': '未找到当前任务的课程列表入口，已停止',
   'pending-questionnaires': '任务列表仍有未完成问卷，已停止，请检查平台状态',
   stopped: '已停止后续操作，已发出的提交以平台结果为准',
-  'storage-error': '读取规则失败，请检查扩展设置',
+  'storage-error': '读取规则失败，请检查脚本管理器设置',
   error: '操作失败，请重试并检查页面',
   unavailable: '无法连接问卷页面，请刷新页面后重试'
 };
@@ -46,10 +46,13 @@ function batchRunning() {
 
 function renderBatch() {
   const batch = status?.batch;
-  if (!batch && !startingBatch && !stoppingBatch) {
+  const idle = !batch || (!batch.running && (!batch.phase || batch.phase === 'idle') && !batch.completed && !batch.skipped && !batch.reason);
+  if (idle && !startingBatch && !stoppingBatch) {
     $('batch-state').textContent = '';
+    $('batch-state').className = '';
     return;
   }
+  $('batch-state').className = startingBatch || stoppingBatch || batch?.running ? 'running' : batch?.phase || '';
   const phase = stoppingBatch ? '正在停止' : startingBatch ? '正在启动' : (BATCH_PHASES[batch.phase] || (batch.running ? '正在处理' : '尚未开始'));
   const reason = batch?.reason ? REASONS[batch.reason] || '处理已停止，请检查当前页面' : '';
   $('batch-state').textContent = `${phase} · 已完成 ${batch?.completed || 0} 份 · 已跳过 ${batch?.skipped || 0} 份${reason ? '；' + reason : ''}`;
@@ -101,7 +104,7 @@ async function refresh() {
   const defaultTemplate = status.templateIsDefault !== false;
   $('preset-name').textContent = defaultTemplate ? '默认模板' : '自定义模板';
   $('preset-values').hidden = !defaultTemplate;
-  $('preset-caption').textContent = defaultTemplate ? 'PPT为主、板书为辅 · 课外1–2小时 · 教师改进：师生交流' : '正在使用你的规则，可在高级设置中查看或调整';
+  $('preset-caption').textContent = defaultTemplate ? 'PPT为主、板书为辅 · 课外1–2小时 · 教师改进：师生交流' : '正在使用你的规则，点击“自定义规则”查看或调整';
   const unmatched = available && Array.isArray(status.unmatchedTitles) ? status.unmatchedTitles : [];
   $('unmatched').textContent = unmatched.length ? '未匹配：' + unmatched.join('；') : '';
   renderBatch();
@@ -189,7 +192,7 @@ $('settings').onclick = async () => {
   try {
     await chrome.runtime.openOptionsPage();
   } catch (e) {
-    $('msg').textContent = '无法打开规则设置，请从扩展详情页打开';
+    $('msg').textContent = '无法打开规则设置，请从脚本管理器菜单打开';
   }
 };
 

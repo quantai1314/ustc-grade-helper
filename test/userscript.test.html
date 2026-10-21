@@ -32,7 +32,7 @@ function renderForm(readonly=false){
 }
 renderForm();
 </script>
-<script src="../dist/ustc-grade-helper.user.js?v=1.2.1"></script>
+<script src="../dist/ustc-grade-helper.user.js?v=1.2.3"></script>
 <script>
 (async()=>{
   const output=document.getElementById('result');const logs=[];let failures=0;
@@ -55,6 +55,14 @@ renderForm();
     root.getElementById('ugh-launcher').click();await until(()=>!main('apply').disabled);
     assert(main('counter').textContent==='0/3'&&main('coverage').textContent.includes('模板可填 1 题（含 1 道必答）'),'题数状态');
     assert(main('unmatched').textContent.includes('哪些方面'),'未匹配列表');
+  });
+  await test('规则入口直接可见，Esc收起面板并返回入口焦点',async()=>{
+    assert(main('settings').getBoundingClientRect().width>0,'规则无需展开即可打开');
+    main('settings').focus();
+    main('settings').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,composed:true}));
+    assert(root.getElementById('ugh-panel').hidden&&root.activeElement===root.getElementById('ugh-launcher'),'收起并恢复焦点');
+    root.getElementById('ugh-launcher').click();await until(()=>!main('apply').disabled);
+    assert(main('batch-state').textContent==='','未启动时无零计数');
   });
   await test('预览不修改表单，应用默认不提交',async()=>{
     main('preview').click();await until(()=>main('msg').textContent.includes('已高亮'));
